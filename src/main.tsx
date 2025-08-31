@@ -5,11 +5,11 @@ import "@/styles/widget.css";
 import { setBase } from "@/lib/api";
 
 // Apunta al mock API
-setBase("http://localhost:4000");
+setBase("https://rag-chat.prontomowers.app/");
 
 createRoot(document.getElementById("root")!).render(
   <ChatWidget
-    endpoint="http://localhost:4000"
+    endpoint="https://rag-chat.prontomowers.app/"
     title="Pronto Mowers"
     primary="#ff6a00"
     bg="#f3f6fc"

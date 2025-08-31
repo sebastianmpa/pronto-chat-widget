@@ -1,27 +1,20 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    VARIABLES (ajusta tamaños y colores aquí)
    ───────────────────────────────────────────────────────────────────────────── */
-:root{
-  --pc-width: 380px;           /* ancho fijo del widget */
-  --pc-height: 620px;          /* alto fijo del widget */
-  --pc-primary: #ff6a00;       /* color principal (botón, burbuja de usuario…) */
-  --pc-bg: #f3f6fc;            /* fondo de cabecera */
-  --pc-radius: 16px;           /* radio general de burbujas/controles */
-
-  /* FAB (launcher flotante) */
-  --pc-fab-size: 72px;         /* diámetro del botón flotante */
-  --pc-fab-icon: 56px;         /* tamaño del ícono dentro del FAB */
-
-  /* Entrada de texto */
-  --pc-input-min-h: 36px;      /* altura mínima del textarea (1 línea) */
-  --pc-input-max-h: 120px;     /* altura máxima antes de mostrar scroll */
+ :host {
+  --pc-width: 340px;
+  --pc-height: 500px;
+  --pc-primary: #ff6a00;
+  --pc-bg: #f3f6fc;
+  --pc-radius: 14px;
+  --pc-fab-size: 60px;
+  --pc-fab-icon: 44px;
+  --pc-input-min-h: 32px;
+  --pc-input-max-h: 90px;
+  --pc-onb-width: 96%;
 }
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   BASE / RESETS
-   ───────────────────────────────────────────────────────────────────────────── */
-:host{ all: initial; }
-*{ box-sizing: border-box; }
+:host { all: initial; }
+* { box-sizing: border-box; }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    LAUNCHER (FAB con ícono)
@@ -62,15 +55,12 @@
    PANEL (contenedor del chat)
    ───────────────────────────────────────────────────────────────────────────── */
 /* Panel base: oculto por defecto, pero visible para animaciones */
-.pc-panel{
-  position: fixed; right: 20px; bottom: 80px;
+.pc-panel {
+  position: fixed; right: 16px; bottom: 80px;
   width: var(--pc-width); height: var(--pc-height);
-  background:#fff; color:#111; border-radius: 20px; overflow:hidden;
-  box-shadow: 0 22px 60px rgba(0,0,0,.30);
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  /* soporte para animación tipo “genie” */
+  background: #fff; color: #111; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 10px 32px rgba(0,0,0,.18);
+  visibility: hidden; opacity: 0; pointer-events: none;
   transform-origin: 100% 0%;
   will-change: transform, clip-path, opacity;
   transition: opacity 0.18s, visibility 0.18s;
@@ -89,10 +79,10 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    CABECERA
    ───────────────────────────────────────────────────────────────────────────── */
-.pc-header{
+.pc-header {
   background: linear-gradient(180deg, #ff7a1f 0%, #ff6a00 100%);
-  padding: 12px; display:flex; align-items:center; gap:10px;
-  color:#fff; flex:0 0 auto;
+  padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+  color: #fff; flex: 0 0 auto;
 }
 .pc-avatar{
   width:24px; height:24px; border-radius:50%;
@@ -114,9 +104,9 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    LISTA DE MENSAJES (scroll)
    ───────────────────────────────────────────────────────────────────────────── */
-.pc-msgs{
-  flex:1 1 auto; min-height:0; overflow:auto;
-  padding: 14px; background:#fafafa;
+.pc-msgs {
+  flex: 1 1 auto; min-height: 0; overflow: auto;
+  padding: 10px; background: #fafafa;
 }
 
 /* Fila por mensaje (sirve para alinear a izquierda/derecha) */
@@ -138,16 +128,15 @@
    BURBUJAS DE MENSAJE (compactas)
    ───────────────────────────────────────────────────────────────────────────── */
 
-.pc-bot,
-.pc-me{
-  display:inline-block;
-  max-width:56%;                 /* control de ancho, NO de altura */
-  padding: 6px 8px;              /* compacto (altura) */
-  border-radius: 10px;
-  font: 13.5px/1.25 Inter,system-ui;
+.pc-bot, .pc-me {
+  display: inline-block;
+  max-width: 80%;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font: 12.5px/1.25 Inter,system-ui;
   word-wrap: break-word;
   animation: pc-pop .18s ease-out;
-  min-height: 0;                 /* evita alturas mínimas heredadas */
+  min-height: 0;
 }
 .pc-bot{
   background:#fff; border:0;
@@ -284,14 +273,11 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    RESPONSIVE
    ───────────────────────────────────────────────────────────────────────────── */
-@media (max-width: 420px){
-  .pc-panel{ width: 92vw; right: 4vw; height: calc(100vh - 120px); }
-  .pc-bot, .pc-me{ max-width:70%; }
+@media (max-width: 420px) {
+  .pc-panel { width: 99vw; right: 0.5vw; height: calc(100vh - 20px); }
+  .pc-bot, .pc-me { max-width: 96%; }
 }
-/* Ancho específico para la burbuja del onboarding (más ancho que 56%) */
-:root{
-  --pc-onb-width: 84%;
-}
+
 
 .pc-onb-bubble{
   max-width: var(--pc-onb-width);

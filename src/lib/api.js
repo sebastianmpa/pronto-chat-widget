@@ -6,8 +6,8 @@ const API = {
     history: "/history", // GET ?sessionId=..&cursor=..
     clear: "/history/clear", // POST {sessionId}
     // NUEVOS
-    customers: "/customers", // POST {email,name,lastName} → [customer, true]
-    conversation: "/conversation", // POST {customerId, conversationId, question, session_id?} → {session_id, answer}
+    customers: "/api/customers/v0", // POST {email,name,lastName} → [customer, true]
+    conversation: "/api/conversations/v0", // POST {customerId, conversationId, question, session_id?} → {session_id, answer}
 };
 let BASE = ""; // se toma de data-endpoint (p.ej. http://localhost:4000)
 export function setBase(url) {
