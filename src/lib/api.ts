@@ -4,10 +4,17 @@ import type {
   ChatRequest,
   ChatResponse,
   HistoryResponse,
-  ConversationRequest,
   ConversationResponse,
   Customer,
 } from "@/types";
+
+export type ConversationRequest = {
+  customerId: string;
+  conversationId?: string; // ahora opcional
+  question: string;
+  session_id?: string | null;
+  metadata?: Record<string, unknown>;
+};
 
 const API = {
   // existentes
@@ -34,8 +41,7 @@ export async function createOrUpdateSession(p: SessionPayload) {
   const r = await fetch(BASE + API.session, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(p),
-    credentials: "include",
+    body: JSON.stringify(p)
   });
   if (!r.ok) throw new Error("session");
   return r.json();
@@ -45,8 +51,7 @@ export async function sendMessage(req: ChatRequest): Promise<ChatResponse> {
   const r = await fetch(BASE + API.chat, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-    credentials: "include",
+    body: JSON.stringify(req)
   });
   if (!r.ok) throw new Error("chat");
   return r.json();
@@ -59,8 +64,7 @@ export async function* streamMessage(
   const r = await fetch(BASE + API.chatStream, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-    body: JSON.stringify({ ...req, stream: true }),
-    credentials: "include",
+    body: JSON.stringify({ ...req, stream: true })
   });
   if (!r.ok || !r.body) throw new Error("stream");
 
@@ -88,7 +92,7 @@ export async function fetchHistory(
   const url = new URL(BASE + API.history, location.origin);
   url.searchParams.set("sessionId", sessionId);
   if (cursor) url.searchParams.set("cursor", cursor);
-  const r = await fetch(url.toString(), { credentials: "include" });
+  const r = await fetch(url.toString());
   if (!r.ok) throw new Error("history");
   return r.json();
 }
@@ -97,8 +101,7 @@ export async function clearHistory(sessionId: string) {
   await fetch(BASE + API.clear, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId }),
-    credentials: "include",
+    body: JSON.stringify({ sessionId })
   });
 }
 
@@ -112,8 +115,7 @@ export async function createCustomer(p: {
   const r = await fetch(BASE + API.customers, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(p),
-    credentials: "include",
+    body: JSON.stringify(p)
   });
   if (!r.ok) throw new Error("customers");
   const data = await r.json(); // [customer, true] según tu backend
@@ -124,12 +126,16 @@ export async function createCustomer(p: {
 export async function askQuestion(
   req: ConversationRequest
 ): Promise<ConversationResponse> {
+  const payload = { ...req };
+  if (payload.conversationId === undefined) {
+    delete payload.conversationId;
+  }
   const r = await fetch(BASE + API.conversation, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-    credentials: "include",
+    body: JSON.stringify(payload)
   });
+  console.log(payload);
   if (!r.ok) throw new Error("conversation");
   return r.json();
 }

@@ -152,26 +152,34 @@ export default function ChatWidget(props: Props) {
     setTyping(true);
 
     try {
-      let customerId = getCustomerId();
+      const customerId = getCustomerId();
       if (!customerId) {
         pushToast(lang === "es" ? "Completa tus datos primero" : "Complete your info first");
         setTyping(false);
         return;
       }
-      let convId = getConversationId();
-      if (!convId) {
-        convId = crypto.randomUUID();
-        setConversationId(convId);
-      }
-      const prevSession = getRagSessionId() || undefined;
-      const r = await askQuestion({
+      // En la primera pregunta no hay conversationId ni session_id
+      let conversationId = getConversationId();
+      let session_id = getRagSessionId() || undefined;
+
+      // Si no hay session_id, es la primera pregunta: solo enviar customerId y question
+      const payload: any = {
         customerId,
-        conversationId: convId,
         question: v,
-        session_id: prevSession,
         metadata: { path: location.pathname, locale: lang },
-      });
-      if (r.session_id) setRagSessionId(r.session_id);
+      };
+      if (session_id) {
+        payload.session_id = session_id;
+        // conversationId se usa solo si ya existe session_id
+        if (conversationId) payload.conversationId = conversationId;
+      }
+
+      const r = await askQuestion(payload);
+      // En la primera respuesta, guardar el session_id y usarlo como conversationId
+      if (r.session_id) {
+        setRagSessionId(r.session_id);
+        setConversationId(r.session_id);
+      }
       const botMsg: ChatMessage = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
       setMsgs((m) => [...m, botMsg]);
     } catch {
