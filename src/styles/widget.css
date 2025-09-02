@@ -3,7 +3,7 @@
    ───────────────────────────────────────────────────────────────────────────── */
  :host {
   --pc-width: 340px;
-  --pc-height: 750px;
+  --pc-height: 600px;
   --pc-primary: #ff6a00;
   --pc-bg: #f3f6fc;
   --pc-radius: 14px;
@@ -20,7 +20,7 @@
    LAUNCHER (FAB con ícono)
    ───────────────────────────────────────────────────────────────────────────── */
 .pc-btn{
-  position: fixed; right: 20px; bottom: 230px;
+  position: fixed; right: 20px; bottom: 200px;
   border: 0; border-radius: 9999px;
   background: var(--pc-primary); color:#fff; cursor: pointer;
   font: 600 14px/1 Inter, system-ui;
