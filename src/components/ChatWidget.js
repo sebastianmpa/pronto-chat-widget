@@ -54,7 +54,7 @@ export default function ChatWidget(props) {
     }, [props.primary, props.bg, props.bubbleRadius]);
     const initial = storage.read();
     const [profile, setProfile] = useState(initial);
-    const lang = initial.locale || detectLang(); // ← sin selector
+    const lang = initial.locale || detectLang();
     const [open, setOpen] = useState(false);
     const [minimized, setMinimized] = useState(false);
     const [animClass, setAnimClass] = useState("");
@@ -63,7 +63,8 @@ export default function ChatWidget(props) {
     const [typing, setTyping] = useState(false);
     const inputRef = useRef(null);
     const msgsRef = useRef(null);
-    const hasOnboarding = !(profile.name && profile.lastName && profile.email && profile.consent);
+    // Solo mostrar onboarding si no existe customerId
+    const hasOnboarding = !getCustomerId();
     function scrollBottom() {
         if (msgsRef.current)
             msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
@@ -100,6 +101,7 @@ export default function ChatWidget(props) {
         try {
             const customer = await createCustomer({ name: p.name, lastName: p.lastName, email: p.email });
             setCustomerId(customer.id);
+            // El onboarding ya no se muestra porque ya existe customerId
             setMsgs((m) => [
                 ...m,
                 { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
