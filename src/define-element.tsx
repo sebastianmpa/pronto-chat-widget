@@ -16,6 +16,7 @@ class ProntoChatElement extends HTMLElement {
     const radius     = Number(this.getAttribute("data-bubble-radius") || 12);
     const token      = (this.getAttribute("data-access-token") as string | null) ?? null;
     const logoUrl    = this.getAttribute("data-logo-url") || null;
+    const termsUrl   = this.getAttribute("data-terms-url") || null;
     const enableDrag = this.getAttribute("data-draggable") === "true";
 
     setBase(endpoint);
@@ -42,6 +43,7 @@ class ProntoChatElement extends HTMLElement {
         token={token}
         logoUrl={logoUrl}
         enableDrag={enableDrag}
+        termsUrl={termsUrl}
       />
     );
   }

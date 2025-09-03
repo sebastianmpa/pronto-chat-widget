@@ -28,6 +28,7 @@ type Props = {
   token?: string | null;
   logoUrl?: string | null;
   enableDrag?: boolean;
+  termsUrl?: string | null;
 };
 
 function PaperPlaneIcon() {

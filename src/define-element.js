@@ -15,6 +15,7 @@ class ProntoChatElement extends HTMLElement {
         const radius = Number(this.getAttribute("data-bubble-radius") || 12);
         const token = (_a = this.getAttribute("data-access-token")) !== null && _a !== void 0 ? _a : null;
         const logoUrl = this.getAttribute("data-logo-url") || null;
+        const termsUrl = this.getAttribute("data-terms-url") || null;
         const enableDrag = this.getAttribute("data-draggable") === "true";
         setBase(endpoint);
         const shadow = this.attachShadow({ mode: "open" });
@@ -26,7 +27,7 @@ class ProntoChatElement extends HTMLElement {
         const mount = document.createElement("div");
         shadow.appendChild(mount);
         const root = createRoot(mount);
-        root.render(_jsx(ChatWidget, { endpoint: endpoint, title: title, primary: primary, bg: bg, bubbleRadius: radius, token: token, logoUrl: logoUrl, enableDrag: enableDrag }));
+        root.render(_jsx(ChatWidget, { endpoint: endpoint, title: title, primary: primary, bg: bg, bubbleRadius: radius, token: token, logoUrl: logoUrl, enableDrag: enableDrag, termsUrl: termsUrl }));
     }
 }
 // 🔵 Registra el custom element inmediatamente (no hay que llamar nada)
