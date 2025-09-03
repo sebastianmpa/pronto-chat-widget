@@ -222,46 +222,43 @@ export default function ChatWidget(props: Props) {
     const emailInvalid = emailTouched && !emailValid;
 
     return (
-      <div className="pc-row pc-row-bot" style={{ height: "100%" }}>
-        <div className="pc-name pc-name-bot">{props.title}</div>
-        <div className="pc-bubble pc-bot pc-onb-bubble" style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div className="pc-card pc-onb-card" style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
-            <div style={{ color: "#333", marginBottom: 4 }}>
-              {lang === "es" ? "Antes de empezar, tus datos:" : "Before we start, your details:"}
-            </div>
-            <input className="pc-field" placeholder={t(lang, "name")}
-              value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" />
-            <input className="pc-field" placeholder={t(lang, "lastName")}
-              value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
-            <input
-              className="pc-field"
-              type="email"
-              placeholder={t(lang, "email")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              style={emailInvalid ? { boxShadow: '0 0 0 2px #ff3b3b' } : {}}
-            />
-            <label style={{ display: "flex", gap: 8, alignItems: "center", font: "13px Inter,system-ui" }}>
-              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              <span>
-                {t(lang, "consent")} {" "}
-                <a href="https://briggs.lawnmowers.parts/terms-conditions/" target="_blank" rel="noopener noreferrer" style={{ color: '#007bff', textDecoration: 'underline' }}>
-                  {lang === "es" ? "Términos y condiciones" : "Terms and conditions"}
-                </a>
-              </span>
-            </label>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
-              <button className="pc-btn-primary" disabled={!valid}
-                onClick={() => valid && handleOnboardingInline({
-                  name: name.trim(),
-                  lastName: lastName.trim(),
-                  email: email.trim().toLowerCase(),
-                  consent
-                })}>
-                {t(lang, "start")}
-              </button>
-            </div>
+      <div className="pc-bubble pc-bot pc-onb-bubble">
+        <div className="pc-card pc-onb-card" style={{ width: "100%", maxHeight: "340px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+          <div style={{ color: "#333", marginBottom: 4 }}>
+            {lang === "es" ? "Antes de empezar, tus datos:" : "Before we start, your details:"}
+          </div>
+          <input className="pc-field" placeholder={t(lang, "name")}
+            value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" />
+          <input className="pc-field" placeholder={t(lang, "lastName")}
+            value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
+          <input
+            className="pc-field"
+            type="email"
+            placeholder={t(lang, "email")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            style={emailInvalid ? { boxShadow: '0 0 0 2px #ff3b3b' } : {}}
+          />
+          <label style={{ display: "flex", gap: 8, alignItems: "center", font: "13px Inter,system-ui" }}>
+            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+            <span>
+              {t(lang, "consent")} {" "}
+              <a href="https://briggs.lawnmowers.parts/terms-conditions/" target="_blank" rel="noopener noreferrer" style={{ color: '#007bff', textDecoration: 'underline' }}>
+                {lang === "es" ? "Términos y condiciones" : "Terms and conditions"}
+              </a>
+            </span>
+          </label>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+            <button className="pc-btn-primary" disabled={!valid}
+              onClick={() => valid && handleOnboardingInline({
+                name: name.trim(),
+                lastName: lastName.trim(),
+                email: email.trim().toLowerCase(),
+                consent
+              })}>
+              {t(lang, "start")}
+            </button>
           </div>
         </div>
       </div>
