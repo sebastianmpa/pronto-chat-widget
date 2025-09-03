@@ -222,10 +222,10 @@ export default function ChatWidget(props: Props) {
     const emailInvalid = emailTouched && !emailValid;
 
     return (
-      <div className="pc-row pc-row-bot">
+      <div className="pc-row pc-row-bot" style={{ height: "100%" }}>
         <div className="pc-name pc-name-bot">{props.title}</div>
-        <div className="pc-bubble pc-bot pc-onb-bubble">
-          <div className="pc-card pc-onb-card" style={{ display: "grid", gap: 10 }}>
+        <div className="pc-bubble pc-bot pc-onb-bubble" style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="pc-card pc-onb-card" style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
             <div style={{ color: "#333", marginBottom: 4 }}>
               {lang === "es" ? "Antes de empezar, tus datos:" : "Before we start, your details:"}
             </div>
@@ -244,7 +244,12 @@ export default function ChatWidget(props: Props) {
             />
             <label style={{ display: "flex", gap: 8, alignItems: "center", font: "13px Inter,system-ui" }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              <span>{t(lang, "consent")}</span>
+              <span>
+                {t(lang, "consent")} {" "}
+                <a href="https://briggs.lawnmowers.parts/terms-conditions/" target="_blank" rel="noopener noreferrer" style={{ color: '#007bff', textDecoration: 'underline' }}>
+                  {lang === "es" ? "Términos y condiciones" : "Terms and conditions"}
+                </a>
+              </span>
             </label>
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
               <button className="pc-btn-primary" disabled={!valid}

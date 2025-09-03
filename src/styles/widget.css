@@ -1,3 +1,44 @@
+/* Onboarding container ocupa todo el alto y ancho del chat */
+
+.pc-onb-bubble {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.pc-onb-card {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pc-field {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pc-onb-card label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font: 13px Inter,system-ui;
+}
+
+.pc-onb-card .pc-btn-primary {
+  margin-top: 4px;
+  align-self: flex-end;
+}
+
+.pc-onb-card a {
+  color: #007bff;
+  text-decoration: underline;
+}
 /* ─────────────────────────────────────────────────────────────────────────────
    VARIABLES (ajusta tamaños y colores aquí)
    ───────────────────────────────────────────────────────────────────────────── */
