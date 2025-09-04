@@ -81,9 +81,26 @@ export default function ChatWidget(props: Props) {
   const lang: Lang = (initial.locale as Lang) || detectLang();
 
   const fabRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(props.hideFab ? true : false);
+  const [open, setOpen] = useState(false); // Siempre inicia cerrado
   const [minimized, setMinimized] = useState(false);
   const [animClass, setAnimClass] = useState<string>("");
+  
+  // Controlar la apertura del chat solo cuando se llama a openProntoChat
+  useEffect(() => {
+    if (!props.hideFab) return; // Solo si hideFab está activo
+    
+    let chatInitialized = false;
+    (window as any).openProntoChat = () => {
+      if (!chatInitialized) {
+        setOpen(true);
+        setMinimized(false);
+        chatInitialized = true;
+      }
+    };
+    return () => {
+      delete (window as any).openProntoChat;
+    };
+  }, [props.hideFab]);
 
   const sessionId = useMemo(() => ensureSessionId(), []);
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
@@ -124,14 +141,13 @@ export default function ChatWidget(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Exponer función global para abrir el chat
+  // Exponer función global para abrir el chat cuando no está oculto el FAB
   useEffect(() => {
+    if (props.hideFab) return; // Skip si hideFab está activo (ya manejado por el otro efecto)
+    
     (window as any).openProntoChat = () => {
-      if (props.hideFab) {
-        setOpen(true);
-        setMinimized(false);
-      } else {
-        fabRef.current?.click();
+      if (fabRef.current) {
+        fabRef.current.click();
       }
     };
     return () => {
