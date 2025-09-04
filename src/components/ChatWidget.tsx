@@ -29,6 +29,7 @@ type Props = {
   logoUrl?: string | null;
   enableDrag?: boolean;
   termsUrl?: string | null;
+  hideFab?: boolean;
 };
 
 function PaperPlaneIcon() {
@@ -79,7 +80,8 @@ export default function ChatWidget(props: Props) {
   const [profile, setProfile] = useState(initial);
   const lang: Lang = (initial.locale as Lang) || detectLang();
 
-  const [open, setOpen] = useState(false);
+  const fabRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(props.hideFab ? true : false);
   const [minimized, setMinimized] = useState(false);
   const [animClass, setAnimClass] = useState<string>("");
 
@@ -121,6 +123,21 @@ export default function ChatWidget(props: Props) {
     setTimeout(scrollBottom, 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Exponer función global para abrir el chat
+  useEffect(() => {
+    (window as any).openProntoChat = () => {
+      if (props.hideFab) {
+        setOpen(true);
+        setMinimized(false);
+      } else {
+        fabRef.current?.click();
+      }
+    };
+    return () => {
+      delete (window as any).openProntoChat;
+    };
+  }, [props.hideFab]);
 
   async function handleOnboardingInline(p: { name: string; lastName: string; email: string; consent: boolean }) {
     const next = { ...storage.read(), ...p, sessionId, locale: lang };
@@ -273,26 +290,28 @@ export default function ChatWidget(props: Props) {
 
   return (
     <>
-      {/* FAB con icono (sin texto) */}
-      <button
-        className="pc-btn pc-fab"
-        onClick={() => {
-          if (!open) {
-            setOpen(true);
-            setMinimized(false);
-            track("chat_open");
-          } else {
-            setOpen(false);
-            setMinimized(false);
-            track("chat_close");
-          }
-        }}
-        aria-label={t(lang, "open")}
-      >
-        <span className="pc-btn-icon">
-          <img src={robotIcon} alt="" />
-        </span>
-      </button>
+      {!props.hideFab && (
+        <button
+          ref={fabRef}
+          className="pc-btn pc-fab"
+          onClick={() => {
+            if (!open) {
+              setOpen(true);
+              setMinimized(false);
+              track("chat_open");
+            } else {
+              setOpen(false);
+              setMinimized(false);
+              track("chat_close");
+            }
+          }}
+          aria-label={t(lang, "open")}
+        >
+          <span className="pc-btn-icon">
+            <img src={robotIcon} alt="" />
+          </span>
+        </button>
+      )}
 
       <div
         id="pc-panel"

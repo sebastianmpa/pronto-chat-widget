@@ -55,7 +55,8 @@ export default function ChatWidget(props) {
     const initial = storage.read();
     const [profile, setProfile] = useState(initial);
     const lang = initial.locale || detectLang();
-    const [open, setOpen] = useState(false);
+    const fabRef = useRef(null);
+    const [open, setOpen] = useState(props.hideFab ? true : false);
     const [minimized, setMinimized] = useState(false);
     const [animClass, setAnimClass] = useState("");
     const sessionId = useMemo(() => ensureSessionId(), []);
@@ -94,6 +95,22 @@ export default function ChatWidget(props) {
         setTimeout(scrollBottom, 50);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
+    // Exponer función global para abrir el chat
+    useEffect(() => {
+        window.openProntoChat = () => {
+            var _a;
+            if (props.hideFab) {
+                setOpen(true);
+                setMinimized(false);
+            }
+            else {
+                (_a = fabRef.current) === null || _a === void 0 ? void 0 : _a.click();
+            }
+        };
+        return () => {
+            delete window.openProntoChat;
+        };
+    }, [props.hideFab]);
     async function handleOnboardingInline(p) {
         const next = { ...storage.read(), ...p, sessionId, locale: lang };
         storage.write(next);
@@ -206,7 +223,7 @@ export default function ChatWidget(props) {
     const displayUserName = (profile.name && String(profile.name)) ||
         (profile.email ? String(profile.email).split("@")[0] : "") ||
         (lang === "es" ? "Tú" : "You");
-    return (_jsxs(_Fragment, { children: [_jsx("button", { className: "pc-btn pc-fab", onClick: () => {
+    return (_jsxs(_Fragment, { children: [!props.hideFab && (_jsx("button", { ref: fabRef, className: "pc-btn pc-fab", onClick: () => {
                     if (!open) {
                         setOpen(true);
                         setMinimized(false);
@@ -217,7 +234,7 @@ export default function ChatWidget(props) {
                         setMinimized(false);
                         track("chat_close");
                     }
-                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) }), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => { setOpen(false); setMinimized(false); }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), hasOnboarding && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding, style: hasOnboarding ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
+                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) })), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => { setOpen(false); setMinimized(false); }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), hasOnboarding && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding, style: hasOnboarding ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
                                     const v = inputRef.current.value.trim();
                                     if (v) {
                                         inputRef.current.value = "";

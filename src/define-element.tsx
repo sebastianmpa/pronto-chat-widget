@@ -18,6 +18,7 @@ class ProntoChatElement extends HTMLElement {
     const logoUrl    = this.getAttribute("data-logo-url") || null;
     const termsUrl   = this.getAttribute("data-terms-url") || null;
     const enableDrag = this.getAttribute("data-draggable") === "true";
+    const hideFab    = this.hasAttribute("hide-fab");
 
     setBase(endpoint);
 
@@ -44,6 +45,7 @@ class ProntoChatElement extends HTMLElement {
         logoUrl={logoUrl}
         enableDrag={enableDrag}
         termsUrl={termsUrl}
+        hideFab={hideFab}
       />
     );
   }

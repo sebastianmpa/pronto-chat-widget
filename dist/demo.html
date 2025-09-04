@@ -4,8 +4,20 @@
     <meta charset="UTF-8" />
     <title>Demo Pronto Chat Widget</title>
     <!-- No incluyas pronto-chat-widget.css; ya va embebido en el shadow -->
+    <style>
+      .button {
+        padding: 10px 20px;
+        margin: 10px;
+        background-color: #ff6a00;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
+    <h2>Demo con botón flotante (default)</h2>
     <pronto-chat
       data-endpoint="https://rag-chat.prontomowers.app"
       data-title="Pronto Mowers"
@@ -13,11 +25,25 @@
       data-bg="#f3f6fc"
       data-bubble-radius="12"
       data-logo-url="./vite.svg"
-      data-draggable="true">
+      data-draggable="true"
+      data-terms-url="https://briggs.lawnmowers.parts/terms-conditions/">
     </pronto-chat>
 
+    <h2>Demo sin botón flotante</h2>
+    <pronto-chat
+      hide-fab
+      data-endpoint="https://rag-chat.prontomowers.app"
+      data-title="Pronto Mowers"
+      data-primary="#ff6a00"
+      data-bg="#f3f6fc"
+      data-bubble-radius="12"
+      data-logo-url="./vite.svg"
+      data-terms-url="https://briggs.lawnmowers.parts/terms-conditions/">
+    </pronto-chat>
+
+    <button class="button" onclick="window.openProntoChat()">Abrir Chat</button>
+
     <script src="./pronto-chat-widget.iife.js"></script>
-    
   </body>
 </html>
 
