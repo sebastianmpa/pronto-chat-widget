@@ -59,22 +59,24 @@ export default function ChatWidget(props) {
     const [open, setOpen] = useState(false); // Siempre inicia cerrado
     const [minimized, setMinimized] = useState(false);
     const [animClass, setAnimClass] = useState("");
-    // Controlar la apertura del chat solo cuando se llama a openProntoChat
+    // Controlar la apertura del chat para el botón personalizado
     useEffect(() => {
         if (!props.hideFab)
             return; // Solo si hideFab está activo
-        let chatInitialized = false;
-        window.openProntoChat = () => {
-            if (!chatInitialized) {
-                setOpen(true);
-                setMinimized(false);
-                chatInitialized = true;
+        const handleToggleChat = () => {
+            setOpen(prev => !prev);
+            setMinimized(false);
+            if (!open) {
+                track("chat_open");
+            }
+            else {
+                track("chat_close");
             }
         };
-        return () => {
-            delete window.openProntoChat;
-        };
-    }, [props.hideFab]);
+        // Escuchar el evento global
+        document.addEventListener('toggle-pronto-chat', handleToggleChat);
+        return () => document.removeEventListener('toggle-pronto-chat', handleToggleChat);
+    }, [props.hideFab, open]);
     const sessionId = useMemo(() => ensureSessionId(), []);
     const [msgs, setMsgs] = useState([]);
     const [typing, setTyping] = useState(false);
@@ -82,9 +84,13 @@ export default function ChatWidget(props) {
     const msgsRef = useRef(null);
     // Solo mostrar onboarding si no existe customerId
     const hasOnboarding = !getCustomerId();
-    function scrollBottom() {
-        if (msgsRef.current)
-            msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
+    function scrollBottom(smooth = true) {
+        if (msgsRef.current) {
+            msgsRef.current.scrollTo({
+                top: msgsRef.current.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        }
     }
     useDrag(!!props.enableDrag, open);
     // Animación al abrir/minimizar
@@ -108,9 +114,15 @@ export default function ChatWidget(props) {
             const welcome = { id: crypto.randomUUID(), who: "assistant", text: t(lang, "welcome") };
             setMsgs([welcome]);
         }
-        setTimeout(scrollBottom, 50);
+        scrollBottom(false); // Scroll instantáneo al abrir
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
+    // Efecto para manejar el scroll automático cuando hay nuevos mensajes
+    useEffect(() => {
+        if (msgs.length > 0) {
+            scrollBottom();
+        }
+    }, [msgs.length]);
     // Exponer función global para abrir el chat cuando no está oculto el FAB
     useEffect(() => {
         if (props.hideFab)
@@ -132,10 +144,13 @@ export default function ChatWidget(props) {
             const customer = await createCustomer({ name: p.name, lastName: p.lastName, email: p.email });
             setCustomerId(customer.id);
             // El onboarding ya no se muestra porque ya existe customerId
-            setMsgs((m) => [
-                ...m,
-                { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
-            ]);
+            setMsgs((m) => {
+                setTimeout(() => scrollBottom(), 0);
+                return [
+                    ...m,
+                    { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
+                ];
+            });
         }
         catch {
             pushToast(lang === "es" ? "No se pudo registrar" : "Registration failed");
@@ -155,7 +170,11 @@ export default function ChatWidget(props) {
         if (!v)
             return;
         const user = { id: crypto.randomUUID(), who: "user", text: v };
-        setMsgs((m) => [...m, user]);
+        setMsgs((m) => {
+            // Scroll inmediato después de agregar el mensaje del usuario
+            setTimeout(() => scrollBottom(), 0);
+            return [...m, user];
+        });
         setTyping(true);
         try {
             const customerId = getCustomerId();
@@ -186,14 +205,21 @@ export default function ChatWidget(props) {
                 setConversationId(r.session_id);
             }
             const botMsg = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
-            setMsgs((m) => [...m, botMsg]);
+            setMsgs((m) => {
+                // Scroll suave después de agregar la respuesta del asistente
+                setTimeout(() => scrollBottom(), 0);
+                return [...m, botMsg];
+            });
         }
         catch {
-            setMsgs((m) => [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }]);
+            setMsgs((m) => {
+                // Scroll suave después de agregar el mensaje de error
+                setTimeout(() => scrollBottom(), 0);
+                return [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
+            });
         }
         finally {
             setTyping(false);
-            setTimeout(scrollBottom, 30);
         }
     }
     function autoResize() {
@@ -247,7 +273,7 @@ export default function ChatWidget(props) {
                         setMinimized(false);
                         track("chat_close");
                     }
-                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) })), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => { setOpen(false); setMinimized(false); }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), hasOnboarding && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding, style: hasOnboarding ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
+                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) })), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => window.openProntoChat(), children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), hasOnboarding && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding, style: hasOnboarding ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
                                     const v = inputRef.current.value.trim();
                                     if (v) {
                                         inputRef.current.value = "";

@@ -85,24 +85,24 @@ export default function ChatWidget(props: Props) {
   const [minimized, setMinimized] = useState(false);
   const [animClass, setAnimClass] = useState<string>("");
   
-  // Controlar la apertura del chat solo cuando se llama a openProntoChat
-  useEffect(() => {
-    if (!props.hideFab) return; // Solo si hideFab está activo
-    
-    let chatInitialized = false;
-    (window as any).openProntoChat = () => {
-      if (!chatInitialized) {
-        setOpen(true);
-        setMinimized(false);
-        chatInitialized = true;
-      }
-    };
-    return () => {
-      delete (window as any).openProntoChat;
-    };
-  }, [props.hideFab]);
+   // Controlar la apertura del chat para el botón personalizado
+   useEffect(() => {
+     if (!props.hideFab) return; // Solo si hideFab está activo
 
-  const sessionId = useMemo(() => ensureSessionId(), []);
+     const handleToggleChat = () => {
+       setOpen(prev => !prev);
+       setMinimized(false);
+       if (!open) {
+         track("chat_open");
+       } else {
+         track("chat_close");
+       }
+     };
+
+     // Escuchar el evento global
+     document.addEventListener('toggle-pronto-chat', handleToggleChat);
+     return () => document.removeEventListener('toggle-pronto-chat', handleToggleChat);
+   }, [props.hideFab, open]);  const sessionId = useMemo(() => ensureSessionId(), []);
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
   const [typing, setTyping] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -111,8 +111,13 @@ export default function ChatWidget(props: Props) {
   // Solo mostrar onboarding si no existe customerId
   const hasOnboarding = !getCustomerId();
 
-  function scrollBottom() {
-    if (msgsRef.current) msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
+  function scrollBottom(smooth = true) {
+    if (msgsRef.current) {
+      msgsRef.current.scrollTo({
+        top: msgsRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+    }
   }
 
   useDrag(!!props.enableDrag, open);
@@ -137,9 +142,16 @@ export default function ChatWidget(props: Props) {
       const welcome: ChatMessage = { id: crypto.randomUUID(), who: "assistant", text: t(lang, "welcome") };
       setMsgs([welcome]);
     }
-    setTimeout(scrollBottom, 50);
+    scrollBottom(false); // Scroll instantáneo al abrir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Efecto para manejar el scroll automático cuando hay nuevos mensajes
+  useEffect(() => {
+    if (msgs.length > 0) {
+      scrollBottom();
+    }
+  }, [msgs.length]);
 
   // Exponer función global para abrir el chat cuando no está oculto el FAB
   useEffect(() => {
@@ -163,10 +175,13 @@ export default function ChatWidget(props: Props) {
       const customer = await createCustomer({ name: p.name, lastName: p.lastName, email: p.email });
       setCustomerId(customer.id);
       // El onboarding ya no se muestra porque ya existe customerId
-      setMsgs((m) => [
-        ...m,
-        { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
-      ]);
+      setMsgs((m) => {
+        setTimeout(() => scrollBottom(), 0);
+        return [
+          ...m,
+          { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
+        ];
+      });
     } catch {
       pushToast(lang === "es" ? "No se pudo registrar" : "Registration failed");
     } finally {
@@ -184,7 +199,11 @@ export default function ChatWidget(props: Props) {
     const v = text.trim();
     if (!v) return;
     const user: ChatMessage = { id: crypto.randomUUID(), who: "user", text: v };
-    setMsgs((m) => [...m, user]);
+    setMsgs((m) => {
+      // Scroll inmediato después de agregar el mensaje del usuario
+      setTimeout(() => scrollBottom(), 0);
+      return [...m, user];
+    });
     setTyping(true);
 
     try {
@@ -217,12 +236,19 @@ export default function ChatWidget(props: Props) {
         setConversationId(r.session_id);
       }
       const botMsg: ChatMessage = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
-      setMsgs((m) => [...m, botMsg]);
+      setMsgs((m) => {
+        // Scroll suave después de agregar la respuesta del asistente
+        setTimeout(() => scrollBottom(), 0);
+        return [...m, botMsg];
+      });
     } catch {
-      setMsgs((m) => [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }]);
+      setMsgs((m) => {
+        // Scroll suave después de agregar el mensaje de error
+        setTimeout(() => scrollBottom(), 0);
+        return [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
+      });
     } finally {
       setTyping(false);
-      setTimeout(scrollBottom, 30);
     }
   }
 
@@ -342,7 +368,7 @@ export default function ChatWidget(props: Props) {
 
           <div className="pc-tools">
             {/* Eliminado el selector de idioma */}
-            <button className="pc-min" onClick={() => { setOpen(false); setMinimized(false); }}>
+            <button className="pc-min" onClick={() => window.openProntoChat()}>
               <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
             </button>
           </div>

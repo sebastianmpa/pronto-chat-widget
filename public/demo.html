@@ -3,47 +3,69 @@
   <head>
     <meta charset="UTF-8" />
     <title>Demo Pronto Chat Widget</title>
-    <!-- No incluyas pronto-chat-widget.css; ya va embebido en el shadow -->
     <style>
-      .button {
-        padding: 10px 20px;
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .btn-rag-chat {
+        padding: 12px 24px;
         margin: 10px;
         background-color: #ff6a00;
         color: white;
         border: none;
         border-radius: 5px;
         cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.2s;
+      }
+      .btn-rag-chat:hover {
+        background-color: #e65c00;
+      }
+      .demo-section {
+        margin: 40px 0;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
       }
     </style>
   </head>
   <body>
-    <h2>Demo con botón flotante (default)</h2>
-    <pronto-chat
-      data-endpoint="https://rag-chat.prontomowers.app"
-      data-title="Pronto Mowers"
-      data-primary="#ff6a00"
-      data-bg="#f3f6fc"
-      data-bubble-radius="12"
-      data-logo-url="./vite.svg"
-      data-draggable="true"
-      data-terms-url="https://briggs.lawnmowers.parts/terms-conditions/">
-    </pronto-chat>
+    <div class="demo-section">
+      <h2>Demo del Widget con Botón Personalizado</h2>
+      <p>El chat se abrirá al hacer clic en el botón:</p>
+      
+      <!-- Widget configurado para ocultarse -->
+      <pronto-chat
+        hide-fab
+        data-endpoint="https://rag-chat.prontomowers.app"
+        data-title="Pronto Mowers"
+        data-primary="#ff6a00"
+        data-bg="#f3f6fc"
+        data-bubble-radius="12"
+        data-logo-url="./vite.svg"
+        data-draggable="true"
+        data-terms-url="https://briggs.lawnmowers.parts/terms-conditions/">
+      </pronto-chat>
 
-    <h2>Demo sin botón flotante</h2>
-    <pronto-chat
-      hide-fab
-      data-endpoint="https://rag-chat.prontomowers.app"
-      data-title="Pronto Mowers"
-      data-primary="#ff6a00"
-      data-bg="#f3f6fc"
-      data-bubble-radius="12"
-      data-logo-url="./vite.svg"
-      data-terms-url="https://briggs.lawnmowers.parts/terms-conditions/">
-    </pronto-chat>
+      <!-- Botón personalizado con la clase específica -->
+      <button class="btn-rag-chat">
+        Chatea con nosotros
+      </button>
+    </div>
 
-    <button class="button" onclick="window.openProntoChat()">Abrir Chat</button>
-
+    <!-- Script del widget -->
     <script src="./pronto-chat-widget.iife.js"></script>
+    <script>
+      // Agregar el evento click al botón personalizado
+      document.querySelector('.btn-rag-chat').addEventListener('click', function() {
+        if (typeof window.openProntoChat === 'function') {
+          window.openProntoChat();
+        }
+      });
+    </script>
   </body>
 </html>
 

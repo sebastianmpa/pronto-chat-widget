@@ -8,6 +8,8 @@ import { setBase } from "@/lib/api";
 import styles from "@/styles/widget.css?inline";
 
 class ProntoChatElement extends HTMLElement {
+  private root?: ReturnType<typeof createRoot>;
+
   connectedCallback() {
     const endpoint   = this.getAttribute("data-endpoint") || "";
     const title      = this.getAttribute("data-title") || "Pronto Mowers";
@@ -54,7 +56,19 @@ class ProntoChatElement extends HTMLElement {
 // 🔵 Registra el custom element inmediatamente (no hay que llamar nada)
 if (!customElements.get("pronto-chat")) {
   customElements.define("pronto-chat", ProntoChatElement);
+  
+  // Siempre definir openProntoChat para que esté disponible globalmente
+  window.openProntoChat = () => {
+    const event = new CustomEvent("toggle-pronto-chat");
+    document.dispatchEvent(event);
+  };
 }
 
-// (Opcional: deja un export por si en el futuro lo quieres invocar a mano)
+// Add type definition for the global function
+declare global {
+  interface Window {
+    openProntoChat: () => void;
+  }
+}
+
 export {};

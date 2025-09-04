@@ -34,4 +34,9 @@ class ProntoChatElement extends HTMLElement {
 // 🔵 Registra el custom element inmediatamente (no hay que llamar nada)
 if (!customElements.get("pronto-chat")) {
     customElements.define("pronto-chat", ProntoChatElement);
+    // Siempre definir openProntoChat para que esté disponible globalmente
+    window.openProntoChat = () => {
+        const event = new CustomEvent("toggle-pronto-chat");
+        document.dispatchEvent(event);
+    };
 }
