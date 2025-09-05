@@ -7,7 +7,7 @@ const dict = {
     open: "Chat",
     send: "Enviar",
     typing: "Escribiendo…",
-    welcome: "¡Hola! Puedo ayudarte a identificar partes compatibles, descargar manuales y añadir productos al carrito.",
+    welcome: "¡Hola{name}! Puedo ayudarte a identificar partes compatibles, descargar manuales y añadir productos al carrito.",
     name: "Nombre",
     email: "Correo",
     lastName: "Apellido",
@@ -25,7 +25,7 @@ const dict = {
     open: "Chat",
     send: "Send",
     typing: "Typing…",
-    welcome: "Hi! I can help identify compatible parts, download manuals and add products to your cart.",
+    welcome: "Hi{name}! I can help identify compatible parts, download manuals and add products to your cart.",
     name: "Name",
     email: "Email",
     lastName: "Last Name",
@@ -45,6 +45,13 @@ export function detectLang(): Lang {
   const n = (navigator.language || "en").slice(0,2).toLowerCase();
   return n === "es" ? "es" : "en";
 }
-export function t(lang: Lang, key: keyof typeof dict["en"]) {
-  return dict[lang][key];
+
+type DictText = typeof dict[keyof typeof dict][keyof typeof dict["en"]];
+
+export function t(lang: Lang, key: keyof typeof dict["en"], params?: { name?: string }): DictText {
+  const template = dict[lang][key];
+  if (params?.name) {
+    return template.replace("{name}", ` ${params.name}`) as DictText;
+  }
+  return template.replace("{name}", "") as DictText;
 }

@@ -3,7 +3,7 @@ const dict = {
         open: "Chat",
         send: "Enviar",
         typing: "Escribiendo…",
-        welcome: "¡Hola! Puedo ayudarte a identificar partes compatibles, descargar manuales y añadir productos al carrito.",
+        welcome: "¡Hola{name}! Puedo ayudarte a identificar partes compatibles, descargar manuales y añadir productos al carrito.",
         name: "Nombre",
         email: "Correo",
         lastName: "Apellido",
@@ -21,7 +21,7 @@ const dict = {
         open: "Chat",
         send: "Send",
         typing: "Typing…",
-        welcome: "Hi! I can help identify compatible parts, download manuals and add products to your cart.",
+        welcome: "Hi{name}! I can help identify compatible parts, download manuals and add products to your cart.",
         name: "Name",
         email: "Email",
         lastName: "Last Name",
@@ -40,6 +40,10 @@ export function detectLang() {
     const n = (navigator.language || "en").slice(0, 2).toLowerCase();
     return n === "es" ? "es" : "en";
 }
-export function t(lang, key) {
-    return dict[lang][key];
+export function t(lang, key, params) {
+    const template = dict[lang][key];
+    if (params === null || params === void 0 ? void 0 : params.name) {
+        return template.replace("{name}", ` ${params.name}`);
+    }
+    return template.replace("{name}", "");
 }

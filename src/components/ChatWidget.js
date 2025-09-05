@@ -111,7 +111,12 @@ export default function ChatWidget(props) {
         if (!open)
             return;
         if (msgs.length === 0) {
-            const welcome = { id: crypto.randomUUID(), who: "assistant", text: t(lang, "welcome") };
+            const stored = storage.read();
+            const welcome = {
+                id: crypto.randomUUID(),
+                who: "assistant",
+                text: t(lang, "welcome", { name: stored.name })
+            };
             setMsgs([welcome]);
         }
         scrollBottom(false); // Scroll instantáneo al abrir
