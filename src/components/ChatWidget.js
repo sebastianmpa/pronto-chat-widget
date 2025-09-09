@@ -6,7 +6,7 @@ import cn from "classnames";
 import { t, detectLang } from "@/lib/i18n";
 import { storage, ensureSessionId, setCustomerId, getCustomerId, setConversationId, getConversationId, setRagSessionId, getRagSessionId, } from "@/lib/storage";
 import { track } from "@/lib/analytics";
-import { createCustomer, askQuestion } from "@/lib/api";
+import { createCustomer, askQuestion, findCustomerById } from "@/lib/api";
 import Toasts, { pushToast } from "./Toast";
 import robotIcon from "@/assets/imagen2.png";
 function PaperPlaneIcon() {
@@ -82,8 +82,11 @@ export default function ChatWidget(props) {
     const [typing, setTyping] = useState(false);
     const inputRef = useRef(null);
     const msgsRef = useRef(null);
-    // Solo mostrar onboarding si no existe customerId
-    const hasOnboarding = !getCustomerId();
+    // Estados para la validación del customer
+    const [customerExists, setCustomerExists] = useState(null); // null = checking, true = exists, false = not exists
+    const [validatingCustomer, setValidatingCustomer] = useState(false);
+    // Solo mostrar onboarding si el customer no existe o está en validación
+    const hasOnboarding = customerExists === false || customerExists === null;
     function scrollBottom(smooth = true) {
         if (msgsRef.current) {
             msgsRef.current.scrollTo({
@@ -141,23 +144,50 @@ export default function ChatWidget(props) {
             delete window.openProntoChat;
         };
     }, [props.hideFab]);
+    // Validar customer al cargar el componente
+    useEffect(() => {
+        const validateCustomer = async () => {
+            const customerId = getCustomerId();
+            if (!customerId || customerId === "undefined") {
+                setCustomerExists(false);
+                return;
+            }
+            setValidatingCustomer(true);
+            try {
+                const customer = await findCustomerById(customerId);
+                setCustomerExists(!!customer);
+            }
+            catch (error) {
+                setCustomerExists(false);
+            }
+            finally {
+                setValidatingCustomer(false);
+            }
+        };
+        validateCustomer();
+    }, []);
     async function handleOnboardingInline(p) {
         const next = { ...storage.read(), ...p, sessionId, locale: lang };
         storage.write(next);
         setProfile(next);
         try {
             const customer = await createCustomer({ name: p.name, lastName: p.lastName, email: p.email });
-            setCustomerId(customer.id);
-            // El onboarding ya no se muestra porque ya existe customerId
-            setMsgs((m) => {
-                setTimeout(() => scrollBottom(), 0);
-                return [
-                    ...m,
-                    { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
-                ];
-            });
+            if (customer.id) {
+                setCustomerId(customer.id);
+                setCustomerExists(true);
+                setMsgs((m) => {
+                    setTimeout(() => scrollBottom(), 0);
+                    return [
+                        ...m,
+                        { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
+                    ];
+                });
+            }
+            else {
+                pushToast(lang === "es" ? "Error en el registro" : "Registration error");
+            }
         }
-        catch {
+        catch (error) {
             pushToast(lang === "es" ? "No se pudo registrar" : "Registration failed");
         }
         finally {
@@ -174,24 +204,21 @@ export default function ChatWidget(props) {
         const v = text.trim();
         if (!v)
             return;
+        const customerId = getCustomerId();
         const user = { id: crypto.randomUUID(), who: "user", text: v };
         setMsgs((m) => {
-            // Scroll inmediato después de agregar el mensaje del usuario
             setTimeout(() => scrollBottom(), 0);
             return [...m, user];
         });
         setTyping(true);
         try {
-            const customerId = getCustomerId();
-            if (!customerId) {
+            if (!customerId || customerId === "undefined") {
                 pushToast(lang === "es" ? "Completa tus datos primero" : "Complete your info first");
                 setTyping(false);
                 return;
             }
-            // En la primera pregunta no hay conversationId ni session_id
             let conversationId = getConversationId();
             let session_id = getRagSessionId() || undefined;
-            // Si no hay session_id, es la primera pregunta: solo enviar customerId y question
             const payload = {
                 customerId,
                 question: v,
@@ -199,26 +226,22 @@ export default function ChatWidget(props) {
             };
             if (session_id) {
                 payload.session_id = session_id;
-                // conversationId se usa solo si ya existe session_id
                 if (conversationId)
                     payload.conversationId = conversationId;
             }
             const r = await askQuestion(payload);
-            // En la primera respuesta, guardar el session_id y usarlo como conversationId
             if (r.session_id) {
                 setRagSessionId(r.session_id);
                 setConversationId(r.session_id);
             }
             const botMsg = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
             setMsgs((m) => {
-                // Scroll suave después de agregar la respuesta del asistente
                 setTimeout(() => scrollBottom(), 0);
                 return [...m, botMsg];
             });
         }
-        catch {
+        catch (error) {
             setMsgs((m) => {
-                // Scroll suave después de agregar el mensaje de error
                 setTimeout(() => scrollBottom(), 0);
                 return [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
             });
@@ -278,12 +301,12 @@ export default function ChatWidget(props) {
                         setMinimized(false);
                         track("chat_close");
                     }
-                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) })), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => window.openProntoChat(), children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), hasOnboarding && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding, style: hasOnboarding ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
+                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) })), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => window.openProntoChat(), children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), validatingCustomer && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] })), hasOnboarding && !validatingCustomer && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding || validatingCustomer, style: (hasOnboarding || validatingCustomer) ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
                                     const v = inputRef.current.value.trim();
                                     if (v) {
                                         inputRef.current.value = "";
                                         autoResize();
                                         send(v);
                                     }
-                                }, disabled: hasOnboarding, style: hasOnboarding ? { opacity: 0.5, cursor: 'not-allowed' } : {}, children: _jsx(PaperPlaneIcon, {}) })] })] }), _jsx(Toasts, {})] }));
+                                }, disabled: hasOnboarding || validatingCustomer, style: (hasOnboarding || validatingCustomer) ? { opacity: 0.5, cursor: 'not-allowed' } : {}, children: _jsx(PaperPlaneIcon, {}) })] })] }), _jsx(Toasts, {})] }));
 }

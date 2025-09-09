@@ -14,7 +14,7 @@ import {
   getRagSessionId,
 } from "@/lib/storage";
 import { track } from "@/lib/analytics";
-import { createCustomer, askQuestion } from "@/lib/api";
+import { createCustomer, askQuestion, findCustomerById } from "@/lib/api";
 import type { ChatMessage } from "@/types";
 import Toasts, { pushToast } from "./Toast";
 import robotIcon from "@/assets/imagen2.png";
@@ -107,9 +107,13 @@ export default function ChatWidget(props: Props) {
   const [typing, setTyping] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const msgsRef = useRef<HTMLDivElement>(null);
+  
+  // Estados para la validación del customer
+  const [customerExists, setCustomerExists] = useState<boolean | null>(null); // null = checking, true = exists, false = not exists
+  const [validatingCustomer, setValidatingCustomer] = useState(false);
 
-  // Solo mostrar onboarding si no existe customerId
-  const hasOnboarding = !getCustomerId();
+  // Solo mostrar onboarding si el customer no existe o está en validación
+  const hasOnboarding = customerExists === false || customerExists === null;
 
   function scrollBottom(smooth = true) {
     if (msgsRef.current) {
@@ -172,22 +176,52 @@ export default function ChatWidget(props: Props) {
     };
   }, [props.hideFab]);
 
+  // Validar customer al cargar el componente
+  useEffect(() => {
+    const validateCustomer = async () => {
+      const customerId = getCustomerId();
+      
+      if (!customerId || customerId === "undefined") {
+        setCustomerExists(false);
+        return;
+      }
+      
+      setValidatingCustomer(true);
+      try {
+        const customer = await findCustomerById(customerId);
+        setCustomerExists(!!customer);
+      } catch (error) {
+        setCustomerExists(false);
+      } finally {
+        setValidatingCustomer(false);
+      }
+    };
+
+    validateCustomer();
+  }, []);
+
   async function handleOnboardingInline(p: { name: string; lastName: string; email: string; consent: boolean }) {
     const next = { ...storage.read(), ...p, sessionId, locale: lang };
     storage.write(next);
     setProfile(next);
     try {
       const customer = await createCustomer({ name: p.name, lastName: p.lastName, email: p.email });
-      setCustomerId(customer.id);
-      // El onboarding ya no se muestra porque ya existe customerId
-      setMsgs((m) => {
-        setTimeout(() => scrollBottom(), 0);
-        return [
-          ...m,
-          { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
-        ];
-      });
-    } catch {
+      
+      if (customer.id) {
+        setCustomerId(customer.id);
+        setCustomerExists(true);
+        
+        setMsgs((m) => {
+          setTimeout(() => scrollBottom(), 0);
+          return [
+            ...m,
+            { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
+          ];
+        });
+      } else {
+        pushToast(lang === "es" ? "Error en el registro" : "Registration error");
+      }
+    } catch (error) {
       pushToast(lang === "es" ? "No se pudo registrar" : "Registration failed");
     } finally {
       setTimeout(scrollBottom, 30);
@@ -203,26 +237,26 @@ export default function ChatWidget(props: Props) {
   async function send(text: string) {
     const v = text.trim();
     if (!v) return;
+    
+    const customerId = getCustomerId();
+    
     const user: ChatMessage = { id: crypto.randomUUID(), who: "user", text: v };
     setMsgs((m) => {
-      // Scroll inmediato después de agregar el mensaje del usuario
       setTimeout(() => scrollBottom(), 0);
       return [...m, user];
     });
     setTyping(true);
 
     try {
-      const customerId = getCustomerId();
-      if (!customerId) {
+      if (!customerId || customerId === "undefined") {
         pushToast(lang === "es" ? "Completa tus datos primero" : "Complete your info first");
         setTyping(false);
         return;
       }
-      // En la primera pregunta no hay conversationId ni session_id
+      
       let conversationId = getConversationId();
       let session_id = getRagSessionId() || undefined;
 
-      // Si no hay session_id, es la primera pregunta: solo enviar customerId y question
       const payload: any = {
         customerId,
         question: v,
@@ -230,25 +264,21 @@ export default function ChatWidget(props: Props) {
       };
       if (session_id) {
         payload.session_id = session_id;
-        // conversationId se usa solo si ya existe session_id
         if (conversationId) payload.conversationId = conversationId;
       }
 
       const r = await askQuestion(payload);
-      // En la primera respuesta, guardar el session_id y usarlo como conversationId
       if (r.session_id) {
         setRagSessionId(r.session_id);
         setConversationId(r.session_id);
       }
       const botMsg: ChatMessage = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
       setMsgs((m) => {
-        // Scroll suave después de agregar la respuesta del asistente
         setTimeout(() => scrollBottom(), 0);
         return [...m, botMsg];
       });
-    } catch {
+    } catch (error) {
       setMsgs((m) => {
-        // Scroll suave después de agregar el mensaje de error
         setTimeout(() => scrollBottom(), 0);
         return [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
       });
@@ -391,7 +421,16 @@ export default function ChatWidget(props: Props) {
             </div>
           ))}
 
-          {hasOnboarding && <OnboardingBubble />}
+          {validatingCustomer && (
+            <div className={cn("pc-row", "pc-row-bot")}>
+              <div className="pc-name pc-name-bot">{props.title}</div>
+              <div className="pc-bubble pc-bot">
+                <div className="pc-typing"><span className="d"></span><span className="d"></span><span className="d"></span></div>
+              </div>
+            </div>
+          )}
+
+          {hasOnboarding && !validatingCustomer && <OnboardingBubble />}
 
           {typing && (
             <div className={cn("pc-row", "pc-row-bot")}>
@@ -411,8 +450,8 @@ export default function ChatWidget(props: Props) {
             placeholder={lang === "es" ? "Escribe un mensaje" : "Type a message"}
             onKeyDown={onKey}
             onInput={autoResize}
-            disabled={hasOnboarding}
-            style={hasOnboarding ? { background: '#f3f3f3', cursor: 'not-allowed' } : {}}
+            disabled={hasOnboarding || validatingCustomer}
+            style={(hasOnboarding || validatingCustomer) ? { background: '#f3f3f3', cursor: 'not-allowed' } : {}}
           />
           <button
             aria-label={t(lang, "send")}
@@ -421,8 +460,8 @@ export default function ChatWidget(props: Props) {
               const v = inputRef.current!.value.trim();
               if (v) { inputRef.current!.value = ""; autoResize(); send(v); }
             }}
-            disabled={hasOnboarding}
-            style={hasOnboarding ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            disabled={hasOnboarding || validatingCustomer}
+            style={(hasOnboarding || validatingCustomer) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
             <PaperPlaneIcon />
           </button>

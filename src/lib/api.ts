@@ -26,6 +26,7 @@ const API = {
 
   // NUEVOS
   customers: "/api/customers/v0",        // POST {email,name,lastName} → [customer, true]
+  customerById: "/api/customers/v0",     // GET /{customerId} → customer
   conversation: "/api/conversations/v0",  // POST {customerId, conversationId, question, session_id?} → {session_id, answer}
 };
 
@@ -118,8 +119,25 @@ export async function createCustomer(p: {
     body: JSON.stringify(p)
   });
   if (!r.ok) throw new Error("customers");
-  const data = await r.json(); // [customer, true] según tu backend
-  const customer: Customer = Array.isArray(data) ? data[0] : data;
+  const data = await r.json();
+  console.log("📡 Raw response from createCustomer:", data);
+  
+  // El backend puede devolver diferentes formatos:
+  // { customer: {...}, created: true } o [customer, true] o directamente customer
+  let customer: Customer;
+  
+  if (data.customer) {
+    // Formato: { customer: {...}, created: true }
+    customer = data.customer;
+  } else if (Array.isArray(data)) {
+    // Formato: [customer, true]
+    customer = data[0];
+  } else {
+    // Formato directo: customer
+    customer = data;
+  }
+  
+  console.log("📡 Parsed customer:", customer);
   return customer;
 }
 
@@ -137,5 +155,14 @@ export async function askQuestion(
   });
   console.log(payload);
   if (!r.ok) throw new Error("conversation");
+  return r.json();
+}
+
+export async function findCustomerById(customerId:string):Promise<Customer>{
+  const r = await fetch(BASE + API.customerById + "/" + customerId, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!r.ok) throw new Error("customer not found");
   return r.json();
 }
