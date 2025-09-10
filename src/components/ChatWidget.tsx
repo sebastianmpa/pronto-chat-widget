@@ -230,7 +230,15 @@ export default function ChatWidget(props: Props) {
 
   function renderMarkdown(md?: string) {
     if (!md) return null;
-    const html = DOMPurify.sanitize(marked.parse(md) as string, { USE_PROFILES: { html: true } });
+    
+    // Configurar renderer personalizado para enlaces
+    const renderer = new marked.Renderer();
+    renderer.link = ({ href, title, tokens }) => {
+      const text = tokens.map(token => token.raw || '').join('');
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer"${title ? ` title="${title}"` : ''}>${text}</a>`;
+    };
+    
+    const html = DOMPurify.sanitize(marked.parse(md, { renderer }) as string, { USE_PROFILES: { html: true } });
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
   }
 

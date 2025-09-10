@@ -197,7 +197,13 @@ export default function ChatWidget(props) {
     function renderMarkdown(md) {
         if (!md)
             return null;
-        const html = DOMPurify.sanitize(marked.parse(md), { USE_PROFILES: { html: true } });
+        // Configurar renderer personalizado para enlaces
+        const renderer = new marked.Renderer();
+        renderer.link = ({ href, title, tokens }) => {
+            const text = tokens.map(token => token.raw || '').join('');
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer"${title ? ` title="${title}"` : ''}>${text}</a>`;
+        };
+        const html = DOMPurify.sanitize(marked.parse(md, { renderer }), { USE_PROFILES: { html: true } });
         return _jsx("div", { dangerouslySetInnerHTML: { __html: html } });
     }
     async function send(text) {
