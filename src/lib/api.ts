@@ -4,17 +4,10 @@ import type {
   ChatRequest,
   ChatResponse,
   HistoryResponse,
+  ConversationRequest,
   ConversationResponse,
   Customer,
 } from "@/types";
-
-export type ConversationRequest = {
-  customerId: string;
-  conversationId?: string; // ahora opcional
-  question: string;
-  session_id?: string | null;
-  metadata?: Record<string, unknown>;
-};
 
 const API = {
   // existentes
@@ -145,8 +138,8 @@ export async function askQuestion(
   req: ConversationRequest
 ): Promise<ConversationResponse> {
   const payload = { ...req };
-  if (payload.conversationId === undefined) {
-    delete payload.conversationId;
+  if (payload.conversation_id === undefined) {
+    delete payload.conversation_id;
   }
   const r = await fetch(BASE + API.conversation, {
     method: "POST",

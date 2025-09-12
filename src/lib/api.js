@@ -108,8 +108,8 @@ export async function createCustomer(p) {
 }
 export async function askQuestion(req) {
     const payload = { ...req };
-    if (payload.conversationId === undefined) {
-        delete payload.conversationId;
+    if (payload.conversation_id === undefined) {
+        delete payload.conversation_id;
     }
     const r = await fetch(BASE + API.conversation, {
         method: "POST",

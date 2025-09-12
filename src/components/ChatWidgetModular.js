@@ -4,11 +4,15 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import cn from "classnames";
 import { t, detectLang } from "@/lib/i18n";
-import { storage, ensureSessionId, setCustomerId, getCustomerId, setConversationId, getConversationId, } from "@/lib/storage";
+import { storage, ensureSessionId, setCustomerId, getCustomerId, getConversationId, getRagSessionId, } from "@/lib/storage";
 import { track } from "@/lib/analytics";
 import { createCustomer, askQuestion, findCustomerById } from "@/lib/api";
 import Toasts, { pushToast } from "./Toast";
 import robotIcon from "@/assets/imagen2.png";
+// Función UUID simple
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
 function PaperPlaneIcon() {
     return (_jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", "aria-hidden": "true", children: _jsx("path", { d: "M2 21l20-9L2 3v6l14 3L2 15v6z", fill: "currentColor" }) }));
 }
@@ -56,13 +60,13 @@ export default function ChatWidget(props) {
     const [profile, setProfile] = useState(initial);
     const lang = initial.locale || detectLang();
     const fabRef = useRef(null);
-    const [open, setOpen] = useState(false); // Siempre inicia cerrado
+    const [open, setOpen] = useState(false);
     const [minimized, setMinimized] = useState(false);
     const [animClass, setAnimClass] = useState("");
     // Controlar la apertura del chat para el botón personalizado
     useEffect(() => {
         if (!props.hideFab)
-            return; // Solo si hideFab está activo
+            return;
         const handleToggleChat = () => {
             setOpen(prev => !prev);
             setMinimized(false);
@@ -73,7 +77,6 @@ export default function ChatWidget(props) {
                 track("chat_close");
             }
         };
-        // Escuchar el evento global
         document.addEventListener('toggle-pronto-chat', handleToggleChat);
         return () => document.removeEventListener('toggle-pronto-chat', handleToggleChat);
     }, [props.hideFab, open]);
@@ -83,9 +86,8 @@ export default function ChatWidget(props) {
     const inputRef = useRef(null);
     const msgsRef = useRef(null);
     // Estados para la validación del customer
-    const [customerExists, setCustomerExists] = useState(null); // null = checking, true = exists, false = not exists
+    const [customerExists, setCustomerExists] = useState(null);
     const [validatingCustomer, setValidatingCustomer] = useState(false);
-    // Solo mostrar onboarding si el customer no existe o está en validación
     const hasOnboarding = customerExists === false || customerExists === null;
     function scrollBottom(smooth = true) {
         if (msgsRef.current) {
@@ -98,7 +100,6 @@ export default function ChatWidget(props) {
     useDrag(!!props.enableDrag, open);
     // Animación al abrir/minimizar
     useEffect(() => {
-        // Solo animar si realmente cambia de cerrado a abierto o viceversa
         if (open && !minimized) {
             setAnimClass("pc-opening");
             const timeout = setTimeout(() => setAnimClass(""), 380);
@@ -109,32 +110,30 @@ export default function ChatWidget(props) {
             const timeout = setTimeout(() => setAnimClass("pc-hidden"), 380);
             return () => clearTimeout(timeout);
         }
-    }, [open, minimized]);
+    }, [open, minimized, animClass]);
     useEffect(() => {
         if (!open)
             return;
         if (msgs.length === 0) {
             const stored = storage.read();
             const welcome = {
-                id: crypto.randomUUID(),
+                id: generateId(),
                 who: "assistant",
                 text: t(lang, "welcome", { name: stored.name })
             };
             setMsgs([welcome]);
         }
-        scrollBottom(false); // Scroll instantáneo al abrir
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
-    // Efecto para manejar el scroll automático cuando hay nuevos mensajes
+        scrollBottom(false);
+    }, [open, lang]);
     useEffect(() => {
         if (msgs.length > 0) {
             scrollBottom();
         }
     }, [msgs.length]);
-    // Exponer función global para abrir el chat cuando no está oculto el FAB
+    // Exponer función global para abrir el chat
     useEffect(() => {
         if (props.hideFab)
-            return; // Skip si hideFab está activo (ya manejado por el otro efecto)
+            return;
         window.openProntoChat = () => {
             if (fabRef.current) {
                 fabRef.current.click();
@@ -179,7 +178,7 @@ export default function ChatWidget(props) {
                     setTimeout(() => scrollBottom(), 0);
                     return [
                         ...m,
-                        { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
+                        { id: generateId(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
                     ];
                 });
             }
@@ -197,20 +196,16 @@ export default function ChatWidget(props) {
     function renderMarkdown(md) {
         if (!md)
             return null;
-        // Configurar renderer personalizado para enlaces
         const renderer = new marked.Renderer();
         renderer.link = ({ href, title, tokens }) => {
             const text = tokens.map(token => token.raw || '').join('');
             return `<a href="${href}" target="_blank" rel="noopener noreferrer"${title ? ` title="${title}"` : ''}>${text}</a>`;
         };
         let html = DOMPurify.sanitize(marked.parse(md, { renderer }), { USE_PROFILES: { html: true } });
-        // Post-procesar para asegurar que todos los enlaces tengan target="_blank"
         html = html.replace(/<a\s+([^>]*?)>/gi, (match, attrs) => {
-            // Si ya tiene target="_blank", no modificar
             if (/target\s*=\s*["']_blank["']/i.test(attrs)) {
                 return match;
             }
-            // Agregar target="_blank" y rel="noopener noreferrer" si no los tiene
             let newAttrs = attrs;
             if (!/target\s*=/i.test(newAttrs)) {
                 newAttrs += ' target="_blank"';
@@ -220,9 +215,7 @@ export default function ChatWidget(props) {
             }
             return `<a ${newAttrs}>`;
         });
-        // Mejorar texto de enlaces existentes que contienen PDFs
         html = html.replace(/<a\s+([^>]*?)>(.*?)<\/a>/gi, (match, attrs, text) => {
-            // Si el href contiene un PDF, cambiar el texto a algo más amigable
             if (attrs.includes('.pdf')) {
                 return `<a ${attrs}>Descargar manual de partes</a>`;
             }
@@ -235,7 +228,7 @@ export default function ChatWidget(props) {
         if (!v)
             return;
         const customerId = getCustomerId();
-        const user = { id: crypto.randomUUID(), who: "user", text: v };
+        const user = { id: generateId(), who: "user", text: v };
         setMsgs((m) => {
             setTimeout(() => scrollBottom(), 0);
             return [...m, user];
@@ -248,26 +241,24 @@ export default function ChatWidget(props) {
                 return;
             }
             let conversationId = getConversationId();
-            // Extraer el dominio actual
-            const storeDomain = window.location.hostname;
-            // Convertir lang a formato IETF BCP 47
-            const langCode = lang === "es" ? "es-ES" : "en-US";
+            let session_id = getRagSessionId() || undefined;
             const payload = {
-                customer_id: customerId,
+                customerId,
                 question: v,
-                lang: langCode,
-                store_domain: storeDomain,
+                metadata: { path: location.pathname, locale: lang },
             };
-            // Solo agregar conversation_id si existe
-            if (conversationId) {
-                payload.conversation_id = conversationId;
+            if (session_id) {
+                payload.session_id = session_id;
+                if (conversationId)
+                    payload.conversationId = conversationId;
             }
             const r = await askQuestion(payload);
-            // Guardar el conversation_id que devuelve la API
-            if (r.conversation_id) {
-                setConversationId(r.conversation_id);
-            }
-            const botMsg = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
+            /*
+            if (r.session_id) {
+              setRagSessionId(r.session_id);
+              setConversationId(r.session_id);
+            }*/
+            const botMsg = { id: generateId(), who: "assistant", text: r.answer };
             setMsgs((m) => {
                 setTimeout(() => scrollBottom(), 0);
                 return [...m, botMsg];
@@ -276,7 +267,7 @@ export default function ChatWidget(props) {
         catch (error) {
             setMsgs((m) => {
                 setTimeout(() => scrollBottom(), 0);
-                return [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
+                return [...m, { id: generateId(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
             });
         }
         finally {
@@ -309,7 +300,6 @@ export default function ChatWidget(props) {
         const [consent, setConsent] = useState(false);
         const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const valid = name.trim() && lastName.trim() && emailRe.test(email.trim()) && consent;
-        // Validación visual para el email
         const emailTouched = email.length > 0;
         const emailValid = emailRe.test(email.trim());
         const emailInvalid = emailTouched && !emailValid;
@@ -334,7 +324,7 @@ export default function ChatWidget(props) {
                         setMinimized(false);
                         track("chat_close");
                     }
-                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) })), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => window.openProntoChat(), children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), validatingCustomer && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] })), hasOnboarding && !validatingCustomer && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding || validatingCustomer, style: (hasOnboarding || validatingCustomer) ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
+                }, "aria-label": t(lang, "open"), children: _jsx("span", { className: "pc-btn-icon", children: _jsx("img", { src: robotIcon, alt: "" }) }) })), _jsxs("div", { id: "pc-panel", className: cn("pc-panel", (open && !minimized) ? "pc-open" : "", animClass), role: "dialog", "aria-label": props.title, style: { fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }, children: [_jsxs("div", { id: "pc-header", className: "pc-header", children: [_jsx("img", { className: "pc-avatar", src: props.logoUrl || "/vite.svg", alt: "" }), _jsx("span", { className: "pc-title", children: props.title }), _jsx("div", { className: "pc-tools", children: _jsx("button", { className: "pc-min", onClick: () => { var _a, _b; return (_b = (_a = window).openProntoChat) === null || _b === void 0 ? void 0 : _b.call(_a); }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", children: _jsx("path", { fill: "currentColor", d: "M7 10l5 5 5-5z" }) }) }) })] }), _jsxs("div", { className: "pc-msgs", ref: msgsRef, children: [msgs.map((m) => (_jsxs("div", { className: cn("pc-row", m.who === "user" ? "pc-row-me" : "pc-row-bot"), children: [_jsx("div", { className: cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot"), children: m.who === "user" ? displayUserName : props.title }), _jsx("div", { className: cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot"), children: renderMarkdown(m.text) })] }, m.id))), validatingCustomer && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] })), hasOnboarding && !validatingCustomer && _jsx(OnboardingBubble, {}), typing && (_jsxs("div", { className: cn("pc-row", "pc-row-bot"), children: [_jsx("div", { className: "pc-name pc-name-bot", children: props.title }), _jsx("div", { className: "pc-bubble pc-bot", children: _jsxs("div", { className: "pc-typing", children: [_jsx("span", { className: "d" }), _jsx("span", { className: "d" }), _jsx("span", { className: "d" })] }) })] }))] }), _jsxs("div", { className: "pc-footer", children: [_jsx("textarea", { ref: inputRef, className: "pc-input", rows: 1, placeholder: lang === "es" ? "Escribe un mensaje" : "Type a message", onKeyDown: onKey, onInput: autoResize, disabled: hasOnboarding || validatingCustomer, style: (hasOnboarding || validatingCustomer) ? { background: '#f3f3f3', cursor: 'not-allowed' } : {} }), _jsx("button", { "aria-label": t(lang, "send"), className: "pc-send", onClick: () => {
                                     const v = inputRef.current.value.trim();
                                     if (v) {
                                         inputRef.current.value = "";

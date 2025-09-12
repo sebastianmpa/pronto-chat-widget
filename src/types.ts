@@ -39,16 +39,16 @@ export type CreateCustomerResponseRaw = [Customer, boolean] | Customer;
 /* ---------- Conversación (nuevo flujo RAG) ---------- */
 
 export type ConversationRequest = {
-  customerId: CustomerId;
-  conversationId: ConversationId;    // lo generamos en el widget si no existe
+  customer_id: CustomerId;
+  conversation_id?: ConversationId;    // opcional - UUID
   question: string;
-  session_id?: RagSessionId | null;  // si ya tienes el session_id guardado
-  metadata?: Record<string, unknown>; // opcional: página, idioma, etc.
+  lang: string; // IETF BCP 47 (e.g., "es-ES", "en-US")
+  store_domain: string; // dominio del store (e.g., "www.echopartsonline.com")
 };
 
 export type ConversationResponse = {
-  session_id: RagSessionId;
-  answer: string;
+  conversation_id: ConversationId; // UUID de la conversación
+  answer: string; // respuesta del chat
   /** opcional: tu backend puede adjuntar acciones en cada respuesta */
   actions?: ChatAction[];
 };

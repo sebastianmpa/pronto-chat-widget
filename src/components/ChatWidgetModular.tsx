@@ -19,6 +19,11 @@ import type { ChatMessage } from "@/types";
 import Toasts, { pushToast } from "./Toast";
 import robotIcon from "@/assets/imagen2.png";
 
+// Función UUID simple
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
 type Props = {
   endpoint: string;
   title: string;
@@ -81,38 +86,38 @@ export default function ChatWidget(props: Props) {
   const lang: Lang = (initial.locale as Lang) || detectLang();
 
   const fabRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false); // Siempre inicia cerrado
+  const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [animClass, setAnimClass] = useState<string>("");
   
-   // Controlar la apertura del chat para el botón personalizado
-   useEffect(() => {
-     if (!props.hideFab) return; // Solo si hideFab está activo
+  // Controlar la apertura del chat para el botón personalizado
+  useEffect(() => {
+    if (!props.hideFab) return;
 
-     const handleToggleChat = () => {
-       setOpen(prev => !prev);
-       setMinimized(false);
-       if (!open) {
-         track("chat_open");
-       } else {
-         track("chat_close");
-       }
-     };
+    const handleToggleChat = () => {
+      setOpen(prev => !prev);
+      setMinimized(false);
+      if (!open) {
+        track("chat_open");
+      } else {
+        track("chat_close");
+      }
+    };
 
-     // Escuchar el evento global
-     document.addEventListener('toggle-pronto-chat', handleToggleChat);
-     return () => document.removeEventListener('toggle-pronto-chat', handleToggleChat);
-   }, [props.hideFab, open]);  const sessionId = useMemo(() => ensureSessionId(), []);
+    document.addEventListener('toggle-pronto-chat', handleToggleChat);
+    return () => document.removeEventListener('toggle-pronto-chat', handleToggleChat);
+  }, [props.hideFab, open]);
+
+  const sessionId = useMemo(() => ensureSessionId(), []);
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
   const [typing, setTyping] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const msgsRef = useRef<HTMLDivElement>(null);
   
   // Estados para la validación del customer
-  const [customerExists, setCustomerExists] = useState<boolean | null>(null); // null = checking, true = exists, false = not exists
+  const [customerExists, setCustomerExists] = useState<boolean | null>(null);
   const [validatingCustomer, setValidatingCustomer] = useState(false);
 
-  // Solo mostrar onboarding si el customer no existe o está en validación
   const hasOnboarding = customerExists === false || customerExists === null;
 
   function scrollBottom(smooth = true) {
@@ -128,7 +133,6 @@ export default function ChatWidget(props: Props) {
 
   // Animación al abrir/minimizar
   useEffect(() => {
-    // Solo animar si realmente cambia de cerrado a abierto o viceversa
     if (open && !minimized) {
       setAnimClass("pc-opening");
       const timeout = setTimeout(() => setAnimClass(""), 380);
@@ -138,33 +142,31 @@ export default function ChatWidget(props: Props) {
       const timeout = setTimeout(() => setAnimClass("pc-hidden"), 380);
       return () => clearTimeout(timeout);
     }
-  }, [open, minimized]);
+  }, [open, minimized, animClass]);
 
   useEffect(() => {
     if (!open) return;
     if (msgs.length === 0) {
       const stored = storage.read();
       const welcome: ChatMessage = { 
-        id: crypto.randomUUID(), 
+        id: generateId(), 
         who: "assistant", 
         text: t(lang, "welcome", { name: stored.name })
       };
       setMsgs([welcome]);
     }
-    scrollBottom(false); // Scroll instantáneo al abrir
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    scrollBottom(false);
+  }, [open, lang]);
 
-  // Efecto para manejar el scroll automático cuando hay nuevos mensajes
   useEffect(() => {
     if (msgs.length > 0) {
       scrollBottom();
     }
   }, [msgs.length]);
 
-  // Exponer función global para abrir el chat cuando no está oculto el FAB
+  // Exponer función global para abrir el chat
   useEffect(() => {
-    if (props.hideFab) return; // Skip si hideFab está activo (ya manejado por el otro efecto)
+    if (props.hideFab) return;
     
     (window as any).openProntoChat = () => {
       if (fabRef.current) {
@@ -215,7 +217,7 @@ export default function ChatWidget(props: Props) {
           setTimeout(() => scrollBottom(), 0);
           return [
             ...m,
-            { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
+            { id: generateId(), who: "assistant", text: lang === "es" ? "Gracias. ¿En qué puedo ayudarte?" : "Thanks. How can I help?" },
           ];
         });
       } else {
@@ -231,7 +233,6 @@ export default function ChatWidget(props: Props) {
   function renderMarkdown(md?: string) {
     if (!md) return null;
     
-    // Configurar renderer personalizado para enlaces
     const renderer = new marked.Renderer();
     renderer.link = ({ href, title, tokens }) => {
       const text = tokens.map(token => token.raw || '').join('');
@@ -240,13 +241,10 @@ export default function ChatWidget(props: Props) {
     
     let html = DOMPurify.sanitize(marked.parse(md, { renderer }) as string, { USE_PROFILES: { html: true } });
     
-    // Post-procesar para asegurar que todos los enlaces tengan target="_blank"
     html = html.replace(/<a\s+([^>]*?)>/gi, (match, attrs) => {
-      // Si ya tiene target="_blank", no modificar
       if (/target\s*=\s*["']_blank["']/i.test(attrs)) {
         return match;
       }
-      // Agregar target="_blank" y rel="noopener noreferrer" si no los tiene
       let newAttrs = attrs;
       if (!/target\s*=/i.test(newAttrs)) {
         newAttrs += ' target="_blank"';
@@ -257,9 +255,7 @@ export default function ChatWidget(props: Props) {
       return `<a ${newAttrs}>`;
     });
     
-    // Mejorar texto de enlaces existentes que contienen PDFs
     html = html.replace(/<a\s+([^>]*?)>(.*?)<\/a>/gi, (match, attrs, text) => {
-      // Si el href contiene un PDF, cambiar el texto a algo más amigable
       if (attrs.includes('.pdf')) {
         return `<a ${attrs}>Descargar manual de partes</a>`;
       }
@@ -275,7 +271,7 @@ export default function ChatWidget(props: Props) {
     
     const customerId = getCustomerId();
     
-    const user: ChatMessage = { id: crypto.randomUUID(), who: "user", text: v };
+    const user: ChatMessage = { id: generateId(), who: "user", text: v };
     setMsgs((m) => {
       setTimeout(() => scrollBottom(), 0);
       return [...m, user];
@@ -290,33 +286,25 @@ export default function ChatWidget(props: Props) {
       }
       
       let conversationId = getConversationId();
-      
-      // Extraer el dominio actual
-      const storeDomain = window.location.hostname;
-      
-      // Convertir lang a formato IETF BCP 47
-      const langCode = lang === "es" ? "es-ES" : "en-US";
+      let session_id = getRagSessionId() || undefined;
 
       const payload: any = {
-        customer_id: customerId,
+        customerId,
         question: v,
-        lang: langCode,
-        store_domain: storeDomain,
+        metadata: { path: location.pathname, locale: lang },
       };
-      
-      // Solo agregar conversation_id si existe
-      if (conversationId) {
-        payload.conversation_id = conversationId;
+      if (session_id) {
+        payload.session_id = session_id;
+        if (conversationId) payload.conversationId = conversationId;
       }
 
       const r = await askQuestion(payload);
-      
-      // Guardar el conversation_id que devuelve la API
-      if (r.conversation_id) {
-        setConversationId(r.conversation_id);
-      }
-      
-      const botMsg: ChatMessage = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
+      /*
+      if (r.session_id) {
+        setRagSessionId(r.session_id);
+        setConversationId(r.session_id);
+      }*/
+      const botMsg: ChatMessage = { id: generateId(), who: "assistant", text: r.answer };
       setMsgs((m) => {
         setTimeout(() => scrollBottom(), 0);
         return [...m, botMsg];
@@ -324,7 +312,7 @@ export default function ChatWidget(props: Props) {
     } catch (error) {
       setMsgs((m) => {
         setTimeout(() => scrollBottom(), 0);
-        return [...m, { id: crypto.randomUUID(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
+        return [...m, { id: generateId(), who: "assistant", text: lang === "es" ? "Error, inténtalo de nuevo." : "Error, try again." }];
       });
     } finally {
       setTyping(false);
@@ -355,7 +343,6 @@ export default function ChatWidget(props: Props) {
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const valid = name.trim() && lastName.trim() && emailRe.test(email.trim()) && consent;
 
-    // Validación visual para el email
     const emailTouched = email.length > 0;
     const emailValid = emailRe.test(email.trim());
     const emailInvalid = emailTouched && !emailValid;
@@ -446,8 +433,7 @@ export default function ChatWidget(props: Props) {
           <span className="pc-title">{props.title}</span>
 
           <div className="pc-tools">
-            {/* Eliminado el selector de idioma */}
-            <button className="pc-min" onClick={() => window.openProntoChat()}>
+            <button className="pc-min" onClick={() => (window as any).openProntoChat?.()}>
               <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
             </button>
           </div>
