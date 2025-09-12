@@ -295,8 +295,8 @@ export default function ChatWidget(props: Props) {
       
       let conversationId = getConversationId();
       
-      // Extraer el dominio actual
-      const storeDomain = window.location.hostname;
+      // Dominio fijo para Echo Parts Online
+      const storeDomain = "www.echopartsonline.com";
       
       // Convertir lang a formato IETF BCP 47
       const langCode = lang === "es" ? "es-ES" : "en-US";
