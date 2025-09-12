@@ -4,7 +4,7 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import cn from "classnames";
 import { t, detectLang } from "@/lib/i18n";
-import { storage, ensureSessionId, setCustomerId, getCustomerId, setConversationId, getConversationId, } from "@/lib/storage";
+import { storage, ensureSessionId, setCustomerId, getCustomerId, setConversationId, getConversationId, setRagSessionId, } from "@/lib/storage";
 import { track } from "@/lib/analytics";
 import { createCustomer, askQuestion, findCustomerById } from "@/lib/api";
 import Toasts, { pushToast } from "./Toast";
@@ -150,6 +150,9 @@ export default function ChatWidget(props) {
             const customerId = getCustomerId();
             if (!customerId || customerId === "undefined") {
                 setCustomerExists(false);
+                // Limpiar cualquier conversationId o ragSessionId anterior si no hay customer
+                setConversationId("");
+                setRagSessionId("");
                 return;
             }
             setValidatingCustomer(true);
@@ -159,6 +162,11 @@ export default function ChatWidget(props) {
             }
             catch (error) {
                 setCustomerExists(false);
+                // Si el customer no existe en la BD, limpiar todos los datos relacionados
+                setConversationId("");
+                setRagSessionId("");
+                // También podemos limpiar el customerId para que muestre onboarding limpio
+                setCustomerId("");
             }
             finally {
                 setValidatingCustomer(false);

@@ -176,31 +176,37 @@ export default function ChatWidget(props: Props) {
     };
   }, [props.hideFab]);
 
-  // Validar customer al cargar el componente
-  useEffect(() => {
-    const validateCustomer = async () => {
-      const customerId = getCustomerId();
-      
-      if (!customerId || customerId === "undefined") {
-        setCustomerExists(false);
-        return;
-      }
-      
-      setValidatingCustomer(true);
-      try {
-        const customer = await findCustomerById(customerId);
-        setCustomerExists(!!customer);
-      } catch (error) {
-        setCustomerExists(false);
-      } finally {
-        setValidatingCustomer(false);
-      }
-    };
+   // Validar customer al cargar el componente
+   useEffect(() => {
+     const validateCustomer = async () => {
+       const customerId = getCustomerId();
+       
+       if (!customerId || customerId === "undefined") {
+         setCustomerExists(false);
+         // Limpiar cualquier conversationId o ragSessionId anterior si no hay customer
+         setConversationId("");
+         setRagSessionId("");
+         return;
+       }
+       
+       setValidatingCustomer(true);
+       try {
+         const customer = await findCustomerById(customerId);
+         setCustomerExists(!!customer);
+       } catch (error) {
+         setCustomerExists(false);
+         // Si el customer no existe en la BD, limpiar todos los datos relacionados
+         setConversationId("");
+         setRagSessionId("");
+         // También podemos limpiar el customerId para que muestre onboarding limpio
+         setCustomerId("");
+       } finally {
+         setValidatingCustomer(false);
+       }
+     };
 
-    validateCustomer();
-  }, []);
-
-  async function handleOnboardingInline(p: { name: string; lastName: string; email: string; consent: boolean }) {
+     validateCustomer();
+   }, []);  async function handleOnboardingInline(p: { name: string; lastName: string; email: string; consent: boolean }) {
     const next = { ...storage.read(), ...p, sessionId, locale: lang };
     storage.write(next);
     setProfile(next);

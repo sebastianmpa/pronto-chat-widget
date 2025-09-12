@@ -185,6 +185,9 @@ export default function ChatWidget(props: Props) {
       
       if (!customerId || customerId === "undefined") {
         setCustomerExists(false);
+        // Limpiar cualquier conversationId o ragSessionId anterior si no hay customer
+        setConversationId("");
+        setRagSessionId("");
         return;
       }
       
@@ -194,6 +197,11 @@ export default function ChatWidget(props: Props) {
         setCustomerExists(!!customer);
       } catch (error) {
         setCustomerExists(false);
+        // Si el customer no existe en la BD, limpiar todos los datos relacionados
+        setConversationId("");
+        setRagSessionId("");
+        // También podemos limpiar el customerId para que muestre onboarding limpio
+        setCustomerId("");
       } finally {
         setValidatingCustomer(false);
       }
@@ -286,24 +294,32 @@ export default function ChatWidget(props: Props) {
       }
       
       let conversationId = getConversationId();
-      let session_id = getRagSessionId() || undefined;
+      
+      // Extraer el dominio actual
+      const storeDomain = window.location.hostname;
+      
+      // Convertir lang a formato IETF BCP 47
+      const langCode = lang === "es" ? "es-ES" : "en-US";
 
       const payload: any = {
-        customerId,
+        customer_id: customerId,
         question: v,
-        metadata: { path: location.pathname, locale: lang },
+        lang: langCode,
+        store_domain: storeDomain,
       };
-      if (session_id) {
-        payload.session_id = session_id;
-        if (conversationId) payload.conversationId = conversationId;
+      
+      // Solo agregar conversation_id si existe
+      if (conversationId) {
+        payload.conversation_id = conversationId;
       }
 
       const r = await askQuestion(payload);
-      /*
-      if (r.session_id) {
-        setRagSessionId(r.session_id);
-        setConversationId(r.session_id);
-      }*/
+      
+      // Guardar el conversation_id que devuelve la API
+      if (r.conversation_id) {
+        setConversationId(r.conversation_id);
+      }
+      
       const botMsg: ChatMessage = { id: generateId(), who: "assistant", text: r.answer };
       setMsgs((m) => {
         setTimeout(() => scrollBottom(), 0);
