@@ -144,14 +144,15 @@ export default function ChatWidget(props) {
             delete window.openProntoChat;
         };
     }, [props.hideFab]);
-    // Validar customer al cargar el componente
+    // Validar customer al cargar el componente y limpiar conversation_id en cada refresh
     useEffect(() => {
+        // Siempre limpiar el conversation_id al cargar la página (refresh)
+        setConversationId("");
         const validateCustomer = async () => {
             const customerId = getCustomerId();
             if (!customerId || customerId === "undefined") {
                 setCustomerExists(false);
-                // Limpiar cualquier conversationId o ragSessionId anterior si no hay customer
-                setConversationId("");
+                // Limpiar cualquier ragSessionId anterior si no hay customer
                 setRagSessionId("");
                 return;
             }
@@ -163,7 +164,6 @@ export default function ChatWidget(props) {
             catch (error) {
                 setCustomerExists(false);
                 // Si el customer no existe en la BD, limpiar todos los datos relacionados
-                setConversationId("");
                 setRagSessionId("");
                 // También podemos limpiar el customerId para que muestre onboarding limpio
                 setCustomerId("");
@@ -266,13 +266,13 @@ export default function ChatWidget(props) {
                 lang: langCode,
                 store_domain: storeDomain,
             };
-            // Solo agregar conversation_id si existe
-            if (conversationId) {
+            // Solo agregar conversation_id si existe y no está vacío
+            if (conversationId && conversationId.trim() !== "") {
                 payload.conversation_id = conversationId;
             }
             const r = await askQuestion(payload);
-            // Guardar el conversation_id que devuelve la API
-            if (r.conversation_id) {
+            // Guardar el conversation_id que devuelve la API (siempre que venga uno válido)
+            if (r.conversation_id && r.conversation_id.trim() !== "") {
                 setConversationId(r.conversation_id);
             }
             const botMsg = { id: crypto.randomUUID(), who: "assistant", text: r.answer };
