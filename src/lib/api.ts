@@ -7,6 +7,8 @@ import type {
   ConversationRequest,
   ConversationResponse,
   Customer,
+  RatingRequest,
+  RatingResponse,
 } from "@/types";
 
 const API = {
@@ -21,6 +23,7 @@ const API = {
   customers: "/api/customers/v0",        // POST {email,name,lastName} → [customer, true]
   customerById: "/api/customers/v0",     // GET /{customerId} → customer
   conversation: "/api/conversations/v0",  // POST {customerId, conversationId, question, session_id?} → {session_id, answer}
+  ratings: "/api/ratings/v0",            // POST {conversation_id, rating, comment?} → success
 };
 
 let BASE = ""; // se toma de data-endpoint (p.ej. http://localhost:4000)
@@ -157,5 +160,15 @@ export async function findCustomerById(customerId:string):Promise<Customer>{
     headers: { "Content-Type": "application/json" }
   });
   if (!r.ok) throw new Error("customer not found");
+  return r.json();
+}
+
+export async function submitRating(params: RatingRequest): Promise<RatingResponse> {
+  const r = await fetch(BASE + API.ratings, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params)
+  });
+  if (!r.ok) throw new Error("rating submission failed");
   return r.json();
 }

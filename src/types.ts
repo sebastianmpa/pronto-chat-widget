@@ -46,9 +46,21 @@ export type ConversationRequest = {
   store_domain: string; // dominio del store (e.g., "www.echopartsonline.com")
 };
 
+/* ---------- Rating System ---------- */
+export type RatingRequest = {
+  conversation_id: ConversationId;
+  rating: "good" | "neutral" | "bad";
+  comment?: string;
+};
+
+export type RatingResponse = {
+  success: boolean;
+};
+
 export type ConversationResponse = {
   conversation_id: ConversationId; // UUID de la conversación
   answer: string; // respuesta del chat
+  close_chat?: boolean; // si es true, mostrar formulario de rating automáticamente
   /** opcional: tu backend puede adjuntar acciones en cada respuesta */
   actions?: ChatAction[];
 };

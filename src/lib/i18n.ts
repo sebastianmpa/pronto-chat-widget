@@ -19,7 +19,23 @@ const dict = {
     clear: "Borrar conversación",
     minimize: "Minimizar",
     close: "Cerrar",
-    language: "Idioma"
+    language: "Idioma",
+    // Rating system
+    rateExperience: "Califica tu experiencia",
+    ratePrompt: "¿Cómo fue tu experiencia con el asistente?",
+    good: "Bueno",
+    neutral: "Neutral",
+    bad: "Malo",
+    commentOptional: "Comentario (opcional)",
+    submitRating: "Enviar calificación",
+    thankYou: "¡Gracias por tu calificación!",
+    conversationEnded: "Conversación finalizada",
+    disclaimer: "Este Asistente AI puede cometer errores. Comprueba la información importante.",
+    endChat: "Finalizar chat",
+    turnOffSignal: "Haz clic en la señal de apagado para salir del chat",
+    confirmEndChat: "¿Estás seguro que deseas finalizar el chat?",
+    yes: "Sí",
+    no: "No"
   },
   en: {
     open: "Chat",
@@ -37,7 +53,23 @@ const dict = {
     clear: "Clear conversation",
     minimize: "Minimize",
     close: "Close",
-    language: "Language"
+    language: "Language",
+    // Rating system
+    rateExperience: "Rate your experience",
+    ratePrompt: "How was your experience with the assistant?",
+    good: "Good",
+    neutral: "Neutral",
+    bad: "Bad",
+    commentOptional: "Comment (optional)",
+    submitRating: "Submit rating",
+    thankYou: "Thank you for your rating!",
+    conversationEnded: "Conversation ended",
+    disclaimer: "This AI Assistant may make mistakes. Check important information.",
+    endChat: "End chat",
+    turnOffSignal: "Click the turn-off signal to leave the chat",
+    confirmEndChat: "Are you sure you want to end the chat?",
+    yes: "Yes",
+    no: "No"
   }
 } as const;
 

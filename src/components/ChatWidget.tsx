@@ -14,7 +14,7 @@ import {
   getRagSessionId,
 } from "@/lib/storage";
 import { track } from "@/lib/analytics";
-import { createCustomer, askQuestion, findCustomerById } from "@/lib/api";
+import { createCustomer, askQuestion, findCustomerById, submitRating } from "@/lib/api";
 import type { ChatMessage } from "@/types";
 import Toasts, { pushToast } from "./Toast";
 import robotIcon from "@/assets/imagen2.png";
@@ -111,6 +111,12 @@ export default function ChatWidget(props: Props) {
   // Estados para la validación del customer
   const [customerExists, setCustomerExists] = useState<boolean | null>(null); // null = checking, true = exists, false = not exists
   const [validatingCustomer, setValidatingCustomer] = useState(false);
+  
+  // Estados para el sistema de rating
+  const [conversationEnded, setConversationEnded] = useState(false);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [showEndChatConfirmation, setShowEndChatConfirmation] = useState(false);
+  const [showRatingBubble, setShowRatingBubble] = useState(false);
 
   // Solo mostrar onboarding si el customer no existe o está en validación
   const hasOnboarding = customerExists === false || customerExists === null;
@@ -328,6 +334,25 @@ export default function ChatWidget(props: Props) {
         setTimeout(() => scrollBottom(), 0);
         return [...m, botMsg];
       });
+
+      // *** ESCENARIO 1: RATING AUTOMÁTICO ***
+      // El backend devuelve close_chat: true, se debe mostrar el rating automáticamente
+      if (r.close_chat === true) {
+        // Esperar un momento para que se muestre la respuesta del bot
+        setTimeout(() => {
+          setConversationEnded(true);
+          setShowRatingBubble(true);
+          
+          // Agregar mensaje de rating como mensaje del bot
+          const ratingMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            who: "assistant", 
+            text: "rating_request" // Identificador especial para mostrar el rating inline
+          };
+          setMsgs(prev => [...prev, ratingMsg]);
+          setTimeout(() => scrollBottom(), 0);
+        }, 1000); // Esperar 1 segundo después de mostrar la respuesta
+      }
     } catch (error) {
       setMsgs((m) => {
         setTimeout(() => scrollBottom(), 0);
@@ -352,6 +377,241 @@ export default function ChatWidget(props: Props) {
       const v = inputRef.current!.value.trim();
       if (v) { inputRef.current!.value = ""; autoResize(); send(v); }
     }
+  }
+
+  // Función para mostrar confirmación de finalizar chat
+  function handleEndChat() {
+    const conversationId = getConversationId();
+    // Siempre mostrar confirmación, independientemente de si hay conversation_id
+    setShowEndChatConfirmation(true);
+    // Agregar mensaje de confirmación como mensaje del bot
+    const confirmationMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      who: "assistant",
+      text: "end_chat_confirmation" // Identificador especial
+    };
+    setMsgs(prev => [...prev, confirmationMsg]);
+    setTimeout(() => scrollBottom(), 0);
+  }
+
+  // *** ESCENARIO 2: RATING MANUAL ***
+  // El usuario hace clic en "Finalizar chat" y confirma con "Sí"
+  function confirmEndChat() {
+    setShowEndChatConfirmation(false);
+    setConversationEnded(true);
+    
+    // Primero, remover el mensaje de confirmación de los mensajes
+    setMsgs(prev => prev.filter(msg => msg.text !== "end_chat_confirmation"));
+    
+    // SIEMPRE mostrar rating cuando el usuario termina manualmente el chat
+    setShowRatingBubble(true);
+    
+    // Agregar mensaje de rating como mensaje del bot
+    setTimeout(() => {
+      const ratingMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        who: "assistant", 
+        text: "rating_request" // Identificador especial para mostrar el rating inline
+      };
+      setMsgs(prev => [...prev, ratingMsg]);
+      setTimeout(() => scrollBottom(), 0);
+    }, 300); // Pequeño delay para que se vea la transición
+  }
+
+  // Función para cancelar el fin del chat
+  function cancelEndChat() {
+    setShowEndChatConfirmation(false);
+    
+    // Remover el mensaje de confirmación y agregar mensaje de continuación
+    setMsgs(prev => {
+      const filteredMsgs = prev.filter(msg => msg.text !== "end_chat_confirmation");
+      const cancelMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        who: "assistant",
+        text: lang === "es" 
+          ? "De acuerdo, continuemos con la conversación. ¿En qué más puedo ayudarte?" 
+          : "Alright, let's continue the conversation. What else can I help you with?"
+      };
+      return [...filteredMsgs, cancelMsg];
+    });
+    setTimeout(() => scrollBottom(), 0);
+  }
+
+  // Función para manejar el envío de rating
+  async function handleSubmitRating(rating: "good" | "neutral" | "bad", comment?: string) {
+    const conversationId = getConversationId();
+    if (!conversationId) {
+      pushToast(lang === "es" ? "Error: No hay conversación activa" : "Error: No active conversation");
+      return;
+    }
+
+    try {
+      await submitRating({
+        conversation_id: conversationId,
+        rating,
+        comment
+      });
+      
+      setRatingSubmitted(true);
+      setShowRatingBubble(false);
+      
+      // Mostrar mensaje de agradecimiento
+      setMsgs(prev => [...prev, {
+        id: crypto.randomUUID(),
+        who: "assistant",
+        text: t(lang, "thankYou")
+      }]);
+      
+      // Limpiar conversation_id después del rating
+      setConversationId("");
+      
+      pushToast(t(lang, "thankYou"));
+      
+      // Cerrar el chat después de un momento
+      setTimeout(() => {
+        setOpen(false);
+        setConversationEnded(false);
+        setRatingSubmitted(false);
+      }, 2000);
+      
+    } catch (error) {
+      pushToast(lang === "es" ? "Error al enviar calificación" : "Error submitting rating");
+    }
+  }
+
+  // Componente de confirmación inline
+  function EndChatConfirmationBubble() {
+    return (
+      <div className="pc-bubble pc-bot">
+        <div className="pc-confirmation-inline">
+          <p style={{ margin: "0 0 12px", color: "#333", fontSize: "14px" }}>
+            {lang === "es" 
+              ? "¿Estás seguro de que quieres finalizar esta conversación?" 
+              : "Are you sure you want to end this conversation?"
+            }
+          </p>
+          <div className="pc-confirmation-buttons">
+            <button
+              className="pc-confirm-btn pc-confirm-yes"
+              onClick={confirmEndChat}
+              style={{
+                background: "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                marginRight: "8px",
+                transition: "background-color 0.2s"
+              }}
+            >
+              {lang === "es" ? "Sí" : "Yes"}
+            </button>
+            <button
+              className="pc-confirm-btn pc-confirm-no"
+              onClick={cancelEndChat}
+              style={{
+                background: "#6c757d",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "background-color 0.2s"
+              }}
+            >
+              {lang === "es" ? "No" : "No"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Componente de rating inline
+  function RatingBubble() {
+    const [selectedRating, setSelectedRating] = useState<"good" | "neutral" | "bad" | null>(null);
+    const [comment, setComment] = useState("");
+
+    const handleSubmit = () => {
+      if (selectedRating) {
+        handleSubmitRating(selectedRating, comment.trim() || undefined);
+      }
+    };
+
+    const getRatingEmoji = (rating: "good" | "neutral" | "bad") => {
+      switch (rating) {
+        case "good": return "😊";
+        case "neutral": return "😐";
+        case "bad": return "😞";
+      }
+    };
+
+    return (
+      <div className="pc-bubble pc-bot">
+        <div className="pc-rating-inline">
+          <p style={{ margin: "0 0 12px", color: "#333", fontSize: "14px" }}>
+            {t(lang, "ratePrompt")}
+          </p>
+          
+          <div className="pc-rating-options-inline">
+            {(["good", "neutral", "bad"] as const).map((rating) => (
+              <button
+                key={rating}
+                className={`pc-rating-option-inline ${selectedRating === rating ? "selected" : ""}`}
+                onClick={() => setSelectedRating(rating)}
+              >
+                <span className="pc-rating-emoji-inline">{getRatingEmoji(rating)}</span>
+                <span className="pc-rating-text-inline">{t(lang, rating)}</span>
+              </button>
+            ))}
+          </div>
+          
+          <textarea
+            className="pc-rating-comment-inline"
+            placeholder={t(lang, "commentOptional")}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+            style={{
+              width: "100%",
+              border: "1px solid #e0e0e0",
+              borderRadius: "6px",
+              padding: "8px",
+              fontSize: "13px",
+              resize: "none",
+              margin: "8px 0",
+              fontFamily: "inherit",
+              boxSizing: "border-box"
+            }}
+          />
+          
+          <button
+            className="pc-rating-submit-inline"
+            onClick={handleSubmit}
+            disabled={!selectedRating}
+            style={{
+              width: "100%",
+              background: selectedRating ? "var(--pc-primary)" : "#ccc",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              padding: "8px 12px",
+              fontSize: "13px",
+              fontWeight: "600",
+              cursor: selectedRating ? "pointer" : "not-allowed",
+              transition: "background-color 0.2s"
+            }}
+          >
+            {t(lang, "submitRating")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   function OnboardingBubble() {
@@ -453,7 +713,6 @@ export default function ChatWidget(props: Props) {
           <span className="pc-title">{props.title}</span>
 
           <div className="pc-tools">
-            {/* Eliminado el selector de idioma */}
             <button className="pc-min" onClick={() => window.openProntoChat()}>
               <svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
             </button>
@@ -466,9 +725,16 @@ export default function ChatWidget(props: Props) {
               <div className={cn("pc-name", m.who === "user" ? "pc-name-me" : "pc-name-bot")}>
                 {m.who === "user" ? displayUserName : props.title}
               </div>
-              <div className={cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot")}>
-                {renderMarkdown(m.text)}
-              </div>
+              {/* Mostrar componentes especiales inline */}
+              {m.text === "rating_request" ? (
+                <RatingBubble />
+              ) : m.text === "end_chat_confirmation" ? (
+                <EndChatConfirmationBubble />
+              ) : (
+                <div className={cn("pc-bubble", m.who === "user" ? "pc-me" : "pc-bot")}>
+                  {renderMarkdown(m.text)}
+                </div>
+              )}
             </div>
           ))}
 
@@ -491,7 +757,26 @@ export default function ChatWidget(props: Props) {
               </div>
             </div>
           )}
+
         </div>
+
+        {/* Botón de turn-off justo arriba del input - siempre presente */}
+        {!conversationEnded && msgs.length > 0 && (
+          <div className="pc-turn-off-above-input">
+            <span className="pc-turn-off-text-inline">
+              {t(lang, "turnOffSignal")}
+            </span>
+            <button 
+              className="pc-turn-off-btn-inline" 
+              onClick={handleEndChat}
+              title={t(lang, "turnOffSignal")}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.59-5.41L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
+              </svg>
+            </button>
+          </div>
+        )}
 
         <div className="pc-footer">
           <textarea
@@ -501,8 +786,8 @@ export default function ChatWidget(props: Props) {
             placeholder={lang === "es" ? "Escribe un mensaje" : "Type a message"}
             onKeyDown={onKey}
             onInput={autoResize}
-            disabled={hasOnboarding || validatingCustomer}
-            style={(hasOnboarding || validatingCustomer) ? { background: '#f3f3f3', cursor: 'not-allowed' } : {}}
+            disabled={hasOnboarding || validatingCustomer || conversationEnded}
+            style={(hasOnboarding || validatingCustomer || conversationEnded) ? { background: '#f3f3f3', cursor: 'not-allowed' } : {}}
           />
           <button
             aria-label={t(lang, "send")}
@@ -511,11 +796,16 @@ export default function ChatWidget(props: Props) {
               const v = inputRef.current!.value.trim();
               if (v) { inputRef.current!.value = ""; autoResize(); send(v); }
             }}
-            disabled={hasOnboarding || validatingCustomer}
-            style={(hasOnboarding || validatingCustomer) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            disabled={hasOnboarding || validatingCustomer || conversationEnded}
+            style={(hasOnboarding || validatingCustomer || conversationEnded) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
             <PaperPlaneIcon />
           </button>
+        </div>
+        
+        {/* Disclaimer */}
+        <div className="pc-disclaimer">
+          {t(lang, "disclaimer")}
         </div>
       </div>
 
